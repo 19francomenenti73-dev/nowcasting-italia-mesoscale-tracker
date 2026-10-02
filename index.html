@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nowcasting Italia - Sistema Radar a Mesoscala</title>
+    <title>Nowcasting Italia - Storm Tracker a Mesoscala</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
@@ -16,7 +16,7 @@
             overflow: hidden; 
         }
         
-        /* Mappa a tutto schermo sopra il banner */
+        /* Mappa a tutto schermo sopra il banner telemetrico */
         #map { 
             position: absolute;
             top: 0;
@@ -49,38 +49,33 @@
         .banner-label { color: #888; font-size: 9px; text-transform: uppercase; margin-bottom: 2px; }
         .banner-val { color: #00ffcc; font-weight: bold; font-size: 12px; }
 
-        /* Animazioni vettoriali e radar */
+        /* Animazioni Pulsanti per i Cerchi dei Centroidi */
         @keyframes pulse-ring {
-            0% { stroke-opacity: 0.4; fill-opacity: 0.05; }
-            50% { stroke-opacity: 1; fill-opacity: 0.25; }
-            100% { stroke-opacity: 0.4; fill-opacity: 0.05; }
-        }
-        @keyframes pulse-dot {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.4); opacity: 0.6; }
-            100% { transform: scale(1); opacity: 1; }
+            0% { stroke-opacity: 0.4; fill-opacity: 0.08; transform: scale(1); }
+            50% { stroke-opacity: 1; fill-opacity: 0.3; transform: scale(1.02); }
+            100% { stroke-opacity: 0.4; fill-opacity: 0.08; transform: scale(1); }
         }
 
-        .macro-circle-red {
-            stroke: #ff3333;
-            stroke-width: 2px;
-            stroke-dasharray: 5, 5;
-            animation: pulse-ring 2s infinite ease-in-out;
+        .circle-red { stroke: #ff3333; stroke-width: 2.5px; stroke-dasharray: 6, 6; animation: pulse-ring 2s infinite ease-in-out; }
+        .circle-orange { stroke: #ff9933; stroke-width: 2.2px; stroke-dasharray: 6, 6; animation: pulse-ring 2.3s infinite ease-in-out; }
+        .circle-yellow { stroke: #ffcc00; stroke-width: 2px; stroke-dasharray: 6, 6; animation: pulse-ring 2.6s infinite ease-in-out; }
+        .circle-green { stroke: #00ff66; stroke-width: 2px; stroke-dasharray: 6, 6; animation: pulse-ring 3s infinite ease-in-out; }
+
+        /* Badge ETA & CEP alla fine del vettore predittivo */
+        .eta-marker {
+            background: rgba(18, 18, 18, 0.9);
+            border: 2px solid #fff;
+            color: #fff;
+            font-family: monospace;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 4px;
+            white-space: nowrap;
+            text-align: center;
+            box-shadow: 0 0 6px rgba(0,0,0,0.7);
         }
-        .macro-circle-green {
-            stroke: #00ff66;
-            stroke-width: 2px;
-            stroke-dasharray: 5, 5;
-            animation: pulse-ring 3s infinite ease-in-out;
-        }
-        .nuclei-dot {
-            background: #000; 
-            border: 2px solid #fff; 
-            border-radius: 50%;
-            width: 10px; 
-            height: 10px; 
-            animation: pulse-dot 1.5s infinite;
-        }
+        
         .leaflet-popup-content { font-size: 12px; color: #111; font-family: sans-serif; }
     </style>
 </head>
@@ -89,10 +84,10 @@
     <div id="map"></div>
 
     <div id="status-banner">
-        <div class="banner-item"><span class="banner-label">Struttura</span><span class="banner-val" id="b-struct">Acquisizione...</span></div>
+        <div class="banner-item"><span class="banner-label">Struttura Primaria</span><span class="banner-val" id="b-struct">Analisi...</span></div>
         <div class="banner-item"><span class="banner-label">Velocità</span><span class="banner-val" id="b-speed">-- km/h</span></div>
         <div class="banner-item"><span class="banner-label">Quota Eco</span><span class="banner-val" id="b-height">-- km</span></div>
-        <div class="banner-item"><span class="banner-label">Intensità</span><span class="banner-val" id="b-vis">--</span></div>
+        <div class="banner-item"><span class="banner-label">Stato</span><span class="banner-val" id="b-vis">Monitoraggio</span></div>
         <div class="banner-item"><span class="banner-label">Radar</span><span class="banner-val" style="color:#00ff00">ONLINE</span></div>
     </div>
 
@@ -104,7 +99,7 @@
             attributionControl: false
         }).setView([42.0, 12.5], 6);
 
-        // Tile di sfondo Esri Dark Gray
+        // Mappa di sfondo Esri Dark Gray
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
             maxZoom: 12,
             minZoom: 4
@@ -114,7 +109,7 @@
 
         setTimeout(() => map.invalidateSize(), 250);
 
-        // Funzione per eliminare radicalmente qualsiasi riferimento alla parola "allerta"
+        // Sanificazione rigorosa contro qualsiasi termine allarmistico
         function sanitizeText(text) {
             if (!text) return 'Monitoraggio';
             return text.toString()
@@ -122,17 +117,24 @@
                        .replace(/allertamento/gi, 'Stato');
         }
 
-        // Parser intelligente delle coordinate per evitare disallineamenti o sparizioni
+        // Parser sicuro delle coordinate [lat, lon] vs [lon, lat]
         function parseCoord(coord) {
             if (!coord || !Array.isArray(coord) || coord.length < 2) return [42.0, 12.5];
             let c0 = coord[0], c1 = coord[1];
-            // Se c0 è compreso tra 30 e 50, è una latitudine valida [lat, lon]. Altrimenti inverte [lon, lat].
             return (c0 >= 30 && c0 <= 50) ? [c0, c1] : [c1, c0];
         }
 
         function parsePath(pathArray) {
             if (!Array.isArray(pathArray)) return [];
             return pathArray.map(pt => parseCoord(pt));
+        }
+
+        // Assegnazione colori gerarchici in base alla distanza/prossimità
+        function getStructureStyle(item, index) {
+            if (item.distance_rank === 'closest' || index === 0) return { class: 'circle-red', color: '#ff3333' };
+            if (item.distance_rank === 'intermediate_1' || index === 1) return { class: 'circle-orange', color: '#ff9933' };
+            if (item.distance_rank === 'intermediate_2' || index === 2) return { class: 'circle-yellow', color: '#ffcc00' };
+            return { class: 'circle-green', color: '#00ff66' };
         }
 
         function loadWeatherData() {
@@ -146,7 +148,7 @@
                 .then(data => {
                     operationalLayer.clearLayers();
 
-                    // 1. Caricamento Raster Radar
+                    // 1. Caricamento Raster Mosaico Radar Nazionale
                     if (data.radar_tile && data.radar_tile.path) {
                         let radarUrl = data.radar_tile.host + data.radar_tile.path + '/256/{z}/{x}/{y}/2/1_1.png';
                         L.tileLayer(radarUrl, { 
@@ -157,68 +159,71 @@
                         }).addTo(operationalLayer);
                     }
 
-                    // 2. Elaborazione Macrostrutture, Centroidi e Vettori
                     let structures = data.macro_structures || [];
                     if (structures.length > 0) {
                         let primary = structures[0];
                         document.getElementById('b-struct').innerText = sanitizeText(primary.type);
                         document.getElementById('b-speed').innerText = (primary.speed_kmh || '--') + ' km/h';
                         document.getElementById('b-height').innerText = (primary.height_km || '--') + ' km';
-                        document.getElementById('b-vis').innerText = sanitizeText(primary.vis || primary.intensity || 'Forte');
+                        document.getElementById('b-vis').innerText = sanitizeText(primary.vis || primary.intensity || 'Attivo');
 
-                        structures.forEach(item => {
+                        // Analisi e rendering di TUTTE le strutture a mesoscala in Italia
+                        structures.forEach((item, index) => {
                             let centerCoord = parseCoord(item.center);
                             let radiusMeters = (item.radius_km || 15) * 1000;
-                            let isClosest = (item.distance_rank === 'closest');
-                            let circleClass = isClosest ? 'macro-circle-red' : 'macro-circle-green';
-                            let lineColor = isClosest ? '#ff3333' : '#00ff66';
+                            let style = getStructureStyle(item, index);
 
-                            // Cerchio del baricentro / CEP
+                            // 3. Cerchio pulsante sul centro (massima riflettività dBZ)
                             let macroCircle = L.circle(centerCoord, {
                                 radius: radiusMeters,
-                                className: circleClass,
+                                className: style.class,
                                 weight: 2,
                                 fillOpacity: 0.15
-                            }).bindPopup(`<b>Struttura:</b> ${sanitizeText(item.type)}<br><b>ID:</b> ${item.id || '--'}<br><b>Velocità:</b> ${item.speed_kmh || '--'} km/h<br><b>Quota:</b> ${item.height_km || '--'} km`);
+                            }).bindPopup(`<b>Struttura:</b> ${sanitizeText(item.type)}<br><b>ID:</b> ${item.id || ('M-' + index)}<br><b>Velocità:</b> ${item.speed_kmh || '--'} km/h<br><b>Quota Eco:</b> ${item.height_km || '--'} km`);
                             operationalLayer.addLayer(macroCircle);
 
-                            // Vettore effettivo
+                            // 6. Vettore di movimento reale rilevato (ogni 5 minuti) - Linea continua visibile
                             if (item.actual_path && item.actual_path.length > 0) {
                                 let actualLine = L.polyline(parsePath(item.actual_path), {
                                     color: '#0055ff',
-                                    weight: 4
-                                });
+                                    weight: 4,
+                                    opacity: 0.9
+                                }).bindPopup(`<b>Vettore Reale (5m)</b><br>ID: ${item.id || '--'}`);
                                 operationalLayer.addLayer(actualLine);
                             }
 
-                            // Vettore di previsione e box CEP
+                            // 4 & 5. Vettore predittivo tratteggiato e badge ETA/CEP finale
                             if (item.forecast_path && item.forecast_path.length > 0) {
-                                let forecastLine = L.polyline(parsePath(item.forecast_path), {
-                                    color: lineColor,
-                                    weight: 3,
-                                    dashArray: '6, 6'
-                                }).bindTooltip(`<b>${sanitizeText(item.eta_cep || 'CEP')}</b>`, {permanent: true, direction: 'top'});
-                                operationalLayer.addLayer(forecastLine);
-                            }
-
-                            // Nuclei interni ad alta riflettività
-                            if (item.nuclei && item.nuclei.length > 0) {
-                                item.nuclei.forEach(nuc => {
-                                    let nucCoord = parseCoord([nuc.lat || nuc[1], nuc.lon || nuc[0]]);
-                                    let dotIcon = L.divIcon({
-                                        className: 'nuclei-dot',
-                                        iconSize: [10, 10]
-                                    });
-                                    let nucMarker = L.marker(nucCoord, { icon: dotIcon })
-                                        .bindPopup(`<b>Nucleo Convettivo</b><br>Intensità: ${nuc.intensity || 'Alta'}`);
-                                    operationalLayer.addLayer(nucMarker);
+                                let fPath = parsePath(item.forecast_path);
+                                
+                                // Linea tratteggiata predittiva dello stesso colore del cerchio
+                                let forecastLine = L.polyline(fPath, {
+                                    color: style.color,
+                                    weight: 3.5,
+                                    dashArray: '8, 8',
+                                    opacity: 0.9
                                 });
+                                operationalLayer.addLayer(forecastLine);
+
+                                // Cerchio/Badge finale indicante ETA e CEP
+                                let endPoint = fPath[fPath.length - 1];
+                                let etaText = item.eta_cep || item.eta || '+30m | CEP: ±1km';
+                                let etaIcon = L.divIcon({
+                                    className: 'eta-marker',
+                                    html: `<div>${sanitizeText(etaText)}</div>`,
+                                    iconSize: [110, 24],
+                                    iconAnchor: [55, 12]
+                                });
+                                
+                                let etaMarker = L.marker(endPoint, { icon: etaIcon })
+                                    .bindPopup(`<b>Previsione Nowcasting</b><br>Target ETA: ${sanitizeText(etaText)}`);
+                                operationalLayer.addLayer(etaMarker);
                             }
                         });
                     }
                 })
                 .catch(err => {
-                    console.error('Errore flusso dati:', err);
+                    console.error('Errore flusso telemetria:', err);
                     document.getElementById('b-struct').innerText = 'ERRORE FLUSSO';
                 });
         }
