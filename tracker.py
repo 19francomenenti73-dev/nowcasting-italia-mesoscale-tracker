@@ -51,18 +51,28 @@ def main():
 
         img_array = np.array(stitched_image)
         alpha_channel = img_array[:, :, 3]
-        precipitation_mask = alpha_channel > 50  
+        
+        # Maschera selettiva per nuclei intensi (elimina rumore e pioggia debole)
+        precipitation_mask = alpha_channel > 160  
 
-        labeled_array, num_features = scipy.ndimage.label(precipitation_mask)
+        # Chiusura morfologica per compattare i blocchi frammentati
+        struct_elem = np.ones((5, 5), dtype=bool)
+        closed_mask = scipy.ndimage.binary_closing(precipitation_mask, structure=struct_elem, iterations=2)
+
+        labeled_array, num_features = scipy.ndimage.label(closed_mask)
         macro_structures = []
         
+        candidates = []
         if num_features > 0:
             objects = scipy.ndimage.find_objects(labeled_array)
             for i, slc in enumerate(objects):
                 if slc is None:
                     continue
                 sub_mask = (labeled_array[slc] == (i + 1))
-                if np.sum(sub_mask) < 20: 
+                pixel_count = np.sum(sub_mask)
+                
+                # Scartiamo strutture più piccole di 400 pixel
+                if pixel_count < 400: 
                     continue
                 
                 cy_local, cx_local = scipy.ndimage.center_of_mass(sub_mask)
@@ -77,32 +87,45 @@ def main():
                 if not (36.0 <= lat_center <= 48.0 and 6.0 <= lon_center <= 19.0):
                     continue
 
-                speed_kmh = 42.0
-                radius_km = 22.5
-                lat_offset = 0.4
-                lon_offset = 0.5
-                
-                forecast_lat = lat_center + lat_offset
-                forecast_lon = lon_center + lon_offset
-
-                macro_structures.append({
-                    "id": f"STORM_{len(macro_structures)+1:02d}",
-                    "type": "Sistema Convettivo a Mesoscala",
-                    "center": [round(float(lat_center), 4), round(float(lon_center), 4)],
-                    "radius_km": radius_km,
-                    "speed_kmh": speed_kmh,
-                    "height_km": 11.5,
-                    "intensity": "Fase Temporale Forte",
-                    "actual_path": [
-                        [round(float(lat_center), 4), round(float(lon_center), 4)],
-                        [round(float(lat_center - 0.1), 4), round(float(lon_center - 0.1), 4)]
-                    ],
-                    "forecast_path": [
-                        [round(float(lat_center), 4), round(float(lon_center), 4)],
-                        [round(float(forecast_lat), 4), round(float(forecast_lon), 4)]
-                    ],
-                    "cep_radius_km": 1.0
+                candidates.append({
+                    "pixel_count": pixel_count,
+                    "lat": lat_center,
+                    "lon": lon_center
                 })
+
+        # Ordiniamo per grandezza e prendiamo solo i primi 5 nuclei più rilevanti
+        candidates = sorted(candidates, key=lambda x: x["pixel_count"], reverse=True)[:5]
+
+        for idx, cand in enumerate(candidates):
+            lat_center = cand["lat"]
+            lon_center = cand["lon"]
+            
+            speed_kmh = 42.0
+            radius_km = 25.0
+            lat_offset = 0.4
+            lon_offset = 0.5
+            
+            forecast_lat = lat_center + lat_offset
+            forecast_lon = lon_center + lon_offset
+
+            macro_structures.append({
+                "id": f"STORM_{idx+1:02d}",
+                "type": "Sistema Convettivo a Mesoscala",
+                "center": [round(float(lat_center), 4), round(float(lon_center), 4)],
+                "radius_km": radius_km,
+                "speed_kmh": speed_kmh,
+                "height_km": 11.5,
+                "intensity": "Fase Temporale Forte",
+                "actual_path": [
+                    [round(float(lat_center), 4), round(float(lon_center), 4)],
+                    [round(float(lat_center - 0.1), 4), round(float(lon_center - 0.1), 4)]
+                ],
+                "forecast_path": [
+                    [round(float(lat_center), 4), round(float(lon_center), 4)],
+                    [round(float(forecast_lat), 4), round(float(forecast_lon), 4)]
+                ],
+                "cep_radius_km": 1.0
+            })
 
         output_payload = {
             "radar_tile": {
@@ -110,7 +133,7 @@ def main():
                 "path": radar_path
             },
             "macro_structures": macro_structures if macro_structures else [{
-                "id": "STORM_00",
+                "id": "STORM_01",
                 "type": "Monitoraggio Area",
                 "center": [43.8, 8.6],
                 "radius_km": 15.0,
@@ -124,7 +147,7 @@ def main():
         }
 
     except Exception as e:
-        print(f"[AVVISO] Errore durante l'esecuzione del tracker, uso fallback sicuro: {e}")
+        print(f"[AVVISO] Errore, uso fallback sicuro: {e}")
         output_payload = {
             "radar_tile": {
                 "host": "https://tilecache.rainviewer.com",
@@ -146,8 +169,8 @@ def main():
 
     with open("centroids.json", "w", encoding='utf-8') as f:
         json.dump(output_payload, f, indent=4)
-        print("[SUCCESSO] centroids.json scritto correttamente.")
+        print("[SUCCESSO] centroids.json ottimizzato.")
 
 if __name__ == "__main__":
     main()
-                
+        
