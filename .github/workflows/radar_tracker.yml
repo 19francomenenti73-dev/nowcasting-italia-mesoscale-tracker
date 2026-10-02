@@ -1,12 +1,9 @@
-name: Mesoscale Radar Tracker Engine
+name: radar_tracker
 
 on:
-  schedule:
-    - cron: '*/10 * * * *'
   workflow_dispatch:
-
-permissions:
-  contents: write
+  schedule:
+    - cron: '*/15 * * * *'  # Esegue il tracker ogni 15 minuti
 
 jobs:
   run-tracker:
@@ -23,15 +20,16 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests
+          pip install requests numpy scipy opencv-python
 
-      - name: Run Radar Tracker Engine
+      - name: Run tracker script
         run: python tracker.py
 
-      - name: Commit and push updated JSON
+      - name: Commit and push updated centroids
         run: |
-          git config --global user.name "Radar Tracker Bot"
-          git config --global user.email "bot@users.noreply.github.com"
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "action@github.com"
           git add centroids.json
-          git diff --staged --quiet || (git commit -m "Auto-update radar centroids [skip ci]" && git push origin HEAD:${{ github.ref_name }})
+          git commit -m "Aggiornamento automatico centroidi e vettori radar [skip ci]" || echo "Nessuna modifica da salvare"
+          git push
           
