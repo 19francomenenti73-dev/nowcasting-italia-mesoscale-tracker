@@ -1,90 +1,104 @@
-import json
-import numpy as np
-from scipy.ndimage import label, center_of_mass
-
-def process_radar_data(dbz_matrix, lat_grid, lon_grid, speed_kmh, height_km):
-    """
-    Elabora la matrice radar dBZ per estrarre il centroide reale, 
-    il vettore reale (passato) e il vettore predittivo (futuro).
-    """
-    # 1. Soglia di riflettività per celle convettive a mesoscala (es. >= 42 dBZ)
-    convective_mask = dbz_matrix >= 42.0
-    
-    if not np.any(convective_mask):
-        return None # Nessuna struttura severa rilevata
-
-    # 2. Etichettatura delle componenti connesse (distinzione delle celle)
-    labeled_array, num_features = label(convective_mask)
-    
-    macro_structures = []
-    
-    for i in range(1, num_features + 1):
-        cell_mask = (labeled_array == i)
-        
-        # Ignora strutture troppo piccole (filtro rumore)
-        if np.sum(cell_mask) < 10: 
-            continue
-            
-        # 3. Calcolo del baricentro ponderato (massima intensità di riflettività)
-        # Usiamo i valori dBZ come pesi per posizionare il centroide esattamente sul cuore della cella
-        weights = dbz_matrix * cell_mask
-        y_idx, x_idx = center_of_mass(weights)
-        
-        # Conversione indici matrice -> Coordinate Geografiche (Lat, Lon)
-        # (Assumendo griglie 2D di latitudine e longitudine corrispondenti alla matrice radar)
-        center_lat = float(np.interp(y_idx, np.arange(lat_grid.shape[0]), lat_grid[:, 0]))
-        center_lon = float(np.interp(x_idx, np.arange(lon_grid.shape[1]), lon_grid[0, :]))
-        
-        # 4. Calcolo del raggio approssimato della struttura (in km)
-        pixel_count = np.sum(cell_mask)
-        radius_km = float(np.sqrt(pixel_count) * 2.5) # Fattore di scala risoluzione radar (es. 2.5 km/pixel)
-        
-        # 5. Generazione Vettore Reale (ultimi 15 minuti di storico posizioni)
-        # In un sistema reale, salvi le posizioni precedenti in DB o cache. 
-        # Qui simuliamo lo storico a ritroso basandoci sulla direzione di moto opposta.
-        actual_path = [
-            [center_lat - 0.05, center_lon - 0.05],
-            [center_lat - 0.02, center_lon - 0.02],
-            [center_lat, center_lon] # Punto corrente (deve coincidere col centroide)
-        ]
-        
-        # 6. Generazione Vettore Predittivo (proiezione futura basata su velocità e direzione)
-        # Semplificazione vettoriale basata su direzione stimata (es. verso est-nordest)
-        # In un ambiente di produzione usi il vettore di moto da cross-correlation o Extrapolation Nowcasting (PySTEPS)
-        forecast_path = [
-            [center_lat, center_lon],
-            [center_lat + 0.04, center_lon + 0.05],
-            [center_lat + 0.08, center_lon + 0.10]
-        ]
-        
-        structure_data = {
-            "id": f"MCS-{i:03d}",
-            "type": "Sistema Convettivo a Mesoscala",
-            "center": [center_lat, center_lon], # IL CENTROIDE FISSO SULLA CELLA
-            "radius_km": round(radius_km, 1),
-            "speed_kmh": int(speed_kmh),
-            "height_km": float(height_km),
-            "intensity": "Fase Temporale Forte",
-            "distance_rank": "closest" if i == 1 else "intermediate",
-            "actual_path": actual_path,
-            "forecast_path": forecast_path,
-            "cep_radius_km": 0.8
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Nowcasting Italia - Radar Live</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; background: #111; color: #fff; font-family: sans-serif; }
+        #map { width: 100%; height: 100vh; }
+        .info-box {
+            position: absolute; bottom: 20px; right: 20px; background: rgba(0,0,0,0.85);
+            padding: 12px 18px; border-radius: 6px; border: 1px solid #00ffcc; z-index: 1000;
+            font-size: 14px; box-shadow: 0 0 10px rgba(0,255,204,0.3);
         }
-        
-        macro_structures.append(structure_data)
-        
-    # Struttura del JSON finale che alimenta il frontend Leaflet
-    output_json = {
-        "radar_tile": {
-            "host": "https://radar.protezionecivile.gov.it",
-            "path": "/mosaic"
-        },
-        "macro_structures": macro_structures
-    }
-    
-    return output_json
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="info-box" id="eta-info">Caricamento dati radar in corso...</div>
 
-# Esempio di esportazione su file
-# with open('centroids.json', 'w') as f:
-#     json.dump(output_json, f, indent=2)
-            
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Inizializzazione mappa centrata sull'area tirrenica / Italia
+        const map = L.map('map').setView([41.0, 10.5], 6);
+
+        // Mappa base scura
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap &copy; CARTO',
+            maxZoom: 19
+        }).addTo(map);
+
+        // Funzione di calcolo distanza Haversine (km)
+        function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+            const R = 6371; 
+            const dLat = (lat2 - lat1) * (Math.PI / 180);
+            const dLon = (lon2 - lon1) * (Math.PI / 180);
+            const a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * 
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        // Punto di riferimento target (Roma)
+        const targetRome = { lat: 41.9028, lon: 12.4964 };
+
+        // Fetch del file centroids.json con bypass della cache (?v=timestamp)
+        fetch('centroids.json?v=' + new Date().getTime())
+            .then(response => response.json())
+            .then(data => {
+                if (!data.macro_structures || data.macro_structures.length === 0) {
+                    document.getElementById('eta-info').innerText = 'Nessuna struttura severa rilevata.';
+                    return;
+                }
+
+                data.macro_structures.forEach(cell => {
+                    const [lat, lon] = cell.center;
+                    const speed = cell.speed_kmh || 42;
+
+                    // 1. Disegna il cerchio del centroide sulla cella corretta
+                    const circle = L.circle([lat, lon], {
+                        color: 'red',
+                        fillColor: '#ff3333',
+                        fillOpacity: 0.4,
+                        radius: (cell.radius_km || 25) * 1000
+                    }).addTo(map);
+
+                    // 2. Vettore Reale (passato - linea blu)
+                    if (cell.actual_path && cell.actual_path.length > 0) {
+                        L.polyline(cell.actual_path, { color: '#0088ff', weight: 4 }).addTo(map);
+                    }
+
+                    // 3. Vettore Predittivo (futuro - linea tratteggiata rossa)
+                    if (cell.forecast_path && cell.forecast_path.length > 0) {
+                        L.polyline(cell.forecast_path, { color: '#ff3333', weight: 4, dashArray: '6, 6' }).addTo(map);
+                    }
+
+                    // 4. Calcolo ETA dinamico verso Roma
+                    const distKm = getDistanceFromLatLonInKm(lat, lon, targetRome.lat, targetRome.lon);
+                    const hours = distKm / speed;
+                    const totalMinutes = Math.round(hours * 60);
+                    const h = Math.floor(totalMinutes / 60);
+                    const m = totalMinutes % 60;
+                    const etaString = h > 0 ? `+${h}h ${m}m` : `+${m}m`;
+
+                    // Aggiorna il box grafico in basso a destra
+                    document.getElementById('eta-info').innerHTML = 
+                        `<b>${cell.type}</b><br>ETA Roma: <b>${etaString}</b> | Distanza: ~${Math.round(distKm)} km`;
+
+                    // Popup informativo sul centroide
+                    circle.bindPopup(`<b>${cell.id}</b><br>${cell.intensity}<br>Velocità: ${speed} km/h<br>ETA Roma: ${etaString}`);
+                });
+            })
+            .catch(err => {
+                console.error('Errore nel caricamento del file JSON:', err);
+                document.getElementById('eta-info').innerText = 'Errore di lettura dati.';
+            });
+    </script>
+</body>
+</html>
