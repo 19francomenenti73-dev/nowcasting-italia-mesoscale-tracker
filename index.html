@@ -6,59 +6,41 @@
     <title>Nowcasting Italia - Radar Tracker</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; background: #111; }
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; background: #ffffff; }
         #map { height: 100vh; width: 100vw; }
-        #debug-box {
-            position: absolute; bottom: 20px; left: 20px; z-index: 1000;
-            background: rgba(0,0,0,0.85); color: #0ff; padding: 10px;
-            font-family: monospace; font-size: 11px; border-radius: 5px;
-            max-width: 320px; word-break: break-all; border: 1px solid #0ff;
-        }
     </style>
 </head>
 <body>
     <div id="map"></div>
-    <div id="debug-box">Connessione al flusso radar...</div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        const debugEl = document.getElementById('debug-box');
-        function logDebug(msg) {
-            console.log(msg);
-            debugEl.innerText = msg;
-        }
-
+        // Inizializza la mappa centrata sull'Italia
         var map = L.map('map').setView([42.0, 12.5], 6);
 
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        // Mappa standard OpenStreetMap pulita, gratuita e senza restrizioni
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
-            attribution: '&copy; OpenStreetMap & CARTO'
+            attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        // Aggiungiamo un timestamp (?t=...) per impedire al browser di usare la cache vecchia
+        // Carica i dati radar in tempo reale generati dal bot
         fetch('centroids.json?t=' + new Date().getTime())
-            .then(response => {
-                if (!response.ok) throw new Error('File JSON non trovato (HTTP ' + response.status + ').');
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
                 if (data && data.length > 0 && data[0].path) {
                     let radarData = data[0];
                     let radarUrl = radarData.host + radarData.path + '/256/{z}/{x}/{y}/2/1_1.png';
-                    logDebug('OK - Radar attivo: ' + radarData.path);
                     
+                    // Sovrappone il layer radar trasparente
                     L.tileLayer(radarUrl, {
                         tileSize: 256,
                         opacity: 0.85,
                         attribution: 'RainViewer'
                     }).addTo(map);
-                } else {
-                    logDebug('Attenzione: centroids.json è vuoto o non formattato.');
                 }
             })
-            .catch(err => {
-                logDebug('Errore: ' + err.message);
-            });
+            .catch(err => console.error('Errore nel caricamento del radar:', err));
     </script>
 </body>
 </html>
