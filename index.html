@@ -10,15 +10,20 @@
             margin: 0; 
             padding: 0; 
             width: 100%; 
-            height: 600px; 
+            height: 100vh; 
             background: #1a1a1a; 
             font-family: monospace; 
             overflow: hidden; 
         }
         
+        /* Layout ad altezza dinamica assoluta: riempie esattamente lo spazio sopra il banner */
         #map { 
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 55px;
             width: 100%; 
-            height: 545px; 
         }
         
         #status-banner {
@@ -94,18 +99,19 @@
     <script>
         var map = L.map('map').setView([42.0, 12.5], 6);
 
-        // Tile ufficiali Esri Dark Gray Canvas (identiche a quelle stabili sotto)
+        // Tile ufficiali Esri Dark Gray Canvas
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
             maxZoom: 12,
             minZoom: 4,
-            attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ'
+            attribution: 'Tiles &copy; Esri'
         }).addTo(map);
 
         var operationalLayer = L.layerGroup().addTo(map);
 
+        // Ricalcola le dimensioni della mappa al caricamento dell'iframe
         setTimeout(function() {
             map.invalidateSize();
-        }, 300);
+        }, 200);
 
         function loadWeatherData() {
             let jsonUrl = 'centroids.json?v=' + new Date().getTime();
@@ -159,7 +165,7 @@
                                 operationalLayer.addLayer(actualLine);
                             }
 
-                            if (item.forecast_path && item.forecast_path.length > 0) {
+                            if (item.forecast_path && item.forecast_path.lengthUAGES && item.forecast_path.length > 0) {
                                 let forecastLine = L.polyline(item.forecast_path, {
                                     color: lineColor,
                                     weight: 3,
