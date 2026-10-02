@@ -1,60 +1,29 @@
 {
   "radar_tile": {
-    "host": "https://tilecache.rainviewer.com",
-    "path": "/v2/radar/416ec5d07895",
-    "time": "2026-10-02 09:30:00 UTC"
+    "host": "https://radar.protezionecivile.gov.it",
+    "path": "/mosaic"
   },
   "macro_structures": [
     {
-      "id": "MCS-TYRRHENIAN-01",
+      "id": "MCS-001",
       "type": "Sistema Convettivo a Mesoscala",
-      "distance_rank": "closest",
-      "center": [
-        40.2,
-        9.5
-      ],
-      "radius_km": 45.0,
-      "speed_kmh": 42.0,
+      "center": [40.2, 9.5],
+      "radius_km": 30.0,
+      "speed_kmh": 42,
       "height_km": 11.5,
-      "vis": "Allerta Temporale Forte",
+      "intensity": "Fase Temporale Forte",
+      "distance_rank": "closest",
       "actual_path": [
-        [
-          39.8,
-          8.9
-        ],
-        [
-          40.2,
-          9.5
-        ]
+        [39.8, 9.1],
+        [40.0, 9.3],
+        [40.2, 9.5]
       ],
       "forecast_path": [
-        [
-          40.2,
-          9.5
-        ],
-        [
-          40.6,
-          10.1
-        ],
-        [
-          41.1,
-          10.8
-        ]
+        [40.2, 9.5],
+        [40.5, 10.1],
+        [40.8, 10.7]
       ],
-      "eta_cep": "ETA Roma: +48m | CEP: \u00b10.8 km",
-      "nuclei": [
-        {
-          "lat": 40.0,
-          "lon": 9.2,
-          "intensity": "54 dBZ Core"
-        },
-        {
-          "lat": 40.4,
-          "lon": 9.8,
-          "intensity": "58 dBZ Core"
-        }
-      ]
+      "cep_radius_km": 0.8
     }
-  ],
-  "timestamp": "2026-10-02T09:31:17.796150+00:00"
+  ]
 }
