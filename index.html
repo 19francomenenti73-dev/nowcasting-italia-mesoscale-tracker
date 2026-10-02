@@ -4,6 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nowcasting Italia - Storm Tracker a Mesoscala</title>
+    
+    <!-- Configurazione PWA per Installazione su Smartphone -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#121212">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Nowcasting IT">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
@@ -111,8 +120,15 @@
                        .replace(/allertamento/gi, 'Stato');
         }
 
+        // Funzione di parsing coordinate blindata (supporta array e oggetti lat/lon)
         function parseCoord(coord) {
-            if (!coord || !Array.isArray(coord) || coord.length < 2) return [42.0, 12.5];
+            if (!coord) return [42.0, 12.5];
+            if (!Array.isArray(coord)) {
+                let lat = coord.lat !== undefined ? coord.lat : (coord[0] !== undefined ? coord[0] : 42.0);
+                let lon = coord.lon !== undefined ? coord.lon : (coord[1] !== undefined ? coord[1] : 12.5);
+                return [lat, lon];
+            }
+            if (coord.length < 2) return [42.0, 12.5];
             let c0 = coord[0], c1 = coord[1];
             return (c0 >= 30 && c0 <= 50) ? [c0, c1] : [c1, c0];
         }
@@ -197,12 +213,13 @@
                             }).bindPopup(`<b>Struttura:</b> ${sanitizeText(item.type)}<br><b>ID:</b> ${item.id || ('M-' + index)}<br><b>Velocità:</b> ${item.speed_kmh || '--'} km/h<br><b>Quota Eco:</b> ${item.height_km || '--'} km`);
                             operationalLayer.addLayer(macroCircle);
 
+                            // Rendering linea blu percorso effettivo corretto
                             if (item.actual_path && item.actual_path.length > 0) {
                                 let actualLine = L.polyline(parsePath(item.actual_path), {
                                     color: '#0055ff',
                                     weight: 4,
                                     opacity: 0.9
-                                }).bindPopup(`<b>Vettore Reale (5m)</b><br>ID: ${item.id || '--'}`);
+                                }).bindPopup(`<b>Vettore Reale</b><br>ID: ${item.id || '--'}`);
                                 operationalLayer.addLayer(actualLine);
                             }
 
