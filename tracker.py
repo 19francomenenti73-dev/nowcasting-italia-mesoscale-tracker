@@ -1,10 +1,7 @@
 import json
-import os
 import requests
 
 def main():
-    url = "https://api.press/public/weather-maps.json" # o rainviewer
-    # Usiamo l'endpoint ufficiale RainViewer
     api_url = "https://api.rainviewer.com/public/weather-maps.json"
     
     try:
@@ -12,6 +9,7 @@ def main():
         data = response.json()
         radar = data.get("radar", {})
         past = radar.get("past", [])
+        host = data.get("host", "")
         
         centroids = []
         if past:
@@ -19,20 +17,18 @@ def main():
             centroids.append({
                 "time": latest.get("time"),
                 "path": latest.get("path"),
-                "host": data.get("host", ""),
+                "host": host,
                 "status": "active"
             })
         
         with open("centroids.json", "w") as f:
             json.dump(centroids, f, indent=2)
-        print("File centroids.json creato con successo.")
+        print("File centroids.json aggiornato con successo.")
         
     except Exception as e:
         print(f"Errore durante il recupero: {e}")
-        # Crea comunque un file vuoto per evitare errori di git
         with open("centroids.json", "w") as f:
             json.dump([], f)
 
 if __name__ == "__main__":
     main()
-    
