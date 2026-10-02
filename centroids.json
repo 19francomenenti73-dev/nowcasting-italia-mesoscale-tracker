@@ -1,60 +1,503 @@
 {
-  "radar_tile": {
-    "host": "https://tilecache.rainviewer.com",
-    "path": "/v2/radar/22bd400c4a70",
-    "time": "2026-10-02 09:50:00 UTC"
-  },
-  "macro_structures": [
-    {
-      "id": "MCS-TYRRHENIAN-01",
-      "type": "Sistema Convettivo a Mesoscala",
-      "distance_rank": "closest",
-      "center": [
-        40.2,
-        9.5
-      ],
-      "radius_km": 45.0,
-      "speed_kmh": 42.0,
-      "height_km": 11.5,
-      "vis": "Allerta Temporale Forte",
-      "actual_path": [
-        [
-          39.8,
-          8.9
-        ],
-        [
-          40.2,
-          9.5
-        ]
-      ],
-      "forecast_path": [
-        [
-          40.2,
-          9.5
-        ],
-        [
-          40.6,
-          10.1
-        ],
-        [
-          41.1,
-          10.8
-        ]
-      ],
-      "eta_cep": "ETA Roma: +48m | CEP: \u00b10.8 km",
-      "nuclei": [
+    "radar_tile": {
+        "host": "https://tilecache.rainviewer.com",
+        "path": "/v2/radar/0ff479a55efd"
+    },
+    "macro_structures": [
         {
-          "lat": 40.0,
-          "lon": 9.2,
-          "intensity": "54 dBZ Core"
+            "id": "STORM_01",
+            "type": "Sistema Convettivo a Mesoscala",
+            "center": [
+                47.3878,
+                8.7964
+            ],
+            "radius_km": 22.5,
+            "speed_kmh": 42.0,
+            "height_km": 11.5,
+            "intensity": "Fase Temporale Forte",
+            "actual_path": [
+                [
+                    47.3878,
+                    8.7964
+                ],
+                [
+                    47.2878,
+                    8.6964
+                ]
+            ],
+            "forecast_path": [
+                [
+                    47.3878,
+                    8.7964
+                ],
+                [
+                    47.7878,
+                    9.2964
+                ]
+            ],
+            "cep_radius_km": 1.0
         },
         {
-          "lat": 40.4,
-          "lon": 9.8,
-          "intensity": "58 dBZ Core"
+            "id": "STORM_02",
+            "type": "Sistema Convettivo a Mesoscala",
+            "center": [
+                45.747,
+                17.3997
+            ],
+            "radius_km": 22.5,
+            "speed_kmh": 42.0,
+            "height_km": 11.5,
+            "intensity": "Fase Temporale Forte",
+            "actual_path": [
+                [
+                    45.747,
+                    17.3997
+                ],
+                [
+                    45.647,
+                    17.2997
+                ]
+            ],
+            "forecast_path": [
+                [
+                    45.747,
+                    17.3997
+                ],
+                [
+                    46.147,
+                    17.8997
+                ]
+            ],
+            "cep_radius_km": 1.0
+        },
+        {
+            "id": "STORM_03",
+            "type": "Sistema Convettivo a Mesoscala",
+            "center": [
+                44.0486,
+                9.095
+            ],
+            "radius_km": 22.5,
+            "speed_kmh": 42.0,
+            "height_km": 11.5,
+            "intensity": "Fase Temporale Forte",
+            "actual_path": [
+                [
+                    44.0486,
+                    9.095
+                ],
+                [
+                    43.9486,
+                    8.995
+                ]
+            ],
+            "forecast_path": [
+                [
+                    44.0486,
+                    9.095
+                ],
+                [
+                    44.4486,
+                    9.595
+                ]
+            ],
+            "cep_radius_km": 1.0
+        },
+        {
+            "id": "STORM_04",
+            "type": "Sistema Convettivo a Mesoscala",
+            "center": [
+                43.9869,
+                8.4556
+            ],
+            "radius_km": 22.5,
+            "speed_kmh": 42.0,
+            "height_km": 11.5,
+            "intensity": "Fase Temporale Forte",
+            "actual_path": [
+                [
+                    43.9869,
+                    8.4556
+                ],
+                [
+                    43.8869,
+                    8.3556
+                ]
+            ],
+            "forecast_path": [
+                [
+                    43.9869,
+                    8.4556
+                ],
+                [
+                    44.3869,
+                    8.9556
+                ]
+            ],
+            "cep_radius_km": 1.0
+        },
+        {
+            "id": "STORM_05",
+            "type": "Sistema Convettivo a Mesoscala",
+            "center": [
+                43.9112,
+                8.877
+            ],
+            "radius_km": 22.5,
+            "speed_kmh": 42.0,
+            "height_km": 11.5,
+            "intensity": "Fase Temporale Forte",
+            "actual_path": [
+                [
+                    43.9112,
+                    8.877
+                ],
+                [
+                    43.8112,
+                    8.777
+                ]
+            ],
+            "forecast_path": [
+                [
+                    43.9112,
+                    8.877
+                ],
+                [
+                    44.3112,
+                    9.377
+                ]
+            ],
+            "cep_radius_km": 1.0
+        },
+        {
+            "id": "STORM_06",
+            "type": "Sistema Convettivo a Mesoscala",
+            "center": [
+                43.5892,
+                10.3803
+            ],
+            "radius_km": 22.5,
+            "speed_kmh": 42.0,
+            "height_km": 11.5,
+            "intensity": "Fase Temporale Forte",
+            "actual_path": [
+                [
+                    43.5892,
+                    10.3803
+                ],
+                [
+                    43.4892,
+                    10.2803
+                ]
+            ],
+            "forecast_path": [
+                [
+                    43.5892,
+                    10.3803
+                ],
+                [
+                    43.9892,
+                    10.8803
+                ]
+            ],
+            "cep_radius_km": 1.0
+        },
+        {
+            "id": "STORM_07",
+            "type": "Sistema Convettivo a Mesoscala",
+            "center": [
+                41.6625,
+                7.139
+            ],
+            "radius_km": 22.5,
+            "speed_kmh": 42.0,
+            "height_km": 11.5,
+            "intensity": "Fase Temporale Forte",
+            "actual_path": [
+                [
+                    41.6625,
+                    7.139
+                ],
+                [
+                    41.5625,
+                    7.039
+                ]
+            ],
+            "forecast_path": [
+                [
+                    41.6625,
+                    7.139
+                ],
+                [
+                    42.0625,
+                    7.639
+                ]
+            ],
+            "cep_radius_km": 1.0
+        },
+        {
+            "id": "STORM_08",
+            "type": "Sistema Convettivo a Mesoscala",
+            "center": [
+                42.758,
+                6.6867
+            ],
+            "radius_km": 22.5,
+            "speed_kmh": 42.0,
+            "height_km": 11.5,
+            "intensity": "Fase Temporale Forte",
+            "actual_path": [
+                [
+                    42.758,
+                    6.6867
+                ],
+                [
+                    42.658,
+                    6.5867
+                ]
+            ],
+            "forecast_path": [
+                [
+                    42.758,
+                    6.6867
+                ],
+                [
+                    43.158,
+                    7.1867
+                ]
+            ],
+            "cep_radius_km": 1.0
+        },
+        {
+            "id": "STORM_09",
+            "type": "Sistema Convettivo a Mesoscala",
+            "center": [
+                42.6579,
+                6.1881
+            ],
+            "radius_km": 22.5,
+            "speed_kmh": 42.0,
+            "height_km": 11.5,
+            "intensity": "Fase Temporale Forte",
+            "actual_path": [
+                [
+                    42.6579,
+                    6.1881
+                ],
+                [
+                    42.5579,
+                    6.0881
+                ]
+            ],
+            "forecast_path": [
+                [
+                    42.6579,
+                    6.1881
+                ],
+                [
+                    43.0579,
+                    6.6881
+                ]
+            ],
+            "cep_radius_km": 1.0
+        },
+        {
+            "id": "STORM_10",
+            "type": "Sistema Convettivo a Mesoscala",
+            "center": [
+                42.6398,
+                7.8972
+            ],
+            "radius_km": 22.5,
+            "speed_kmh": 42.0,
+            "height_km": 11.5,
+            "intensity": "Fase Temporale Forte",
+            "actual_path": [
+                [
+                    42.6398,
+                    7.8972
+                ],
+                [
+                    42.5398,
+                    7.7972
+                ]
+            ],
+            "forecast_path": [
+                [
+                    42.6398,
+                    7.8972
+                ],
+                [
+                    43.0398,
+                    8.3972
+                ]
+            ],
+            "cep_radius_km": 1.0
+        },
+        {
+            "id": "STORM_11",
+            "type": "Sistema Convettivo a Mesoscala",
+            "center": [
+                42.0793,
+                10.3607
+            ],
+            "radius_km": 22.5,
+            "speed_kmh": 42.0,
+            "height_km": 11.5,
+            "intensity": "Fase Temporale Forte",
+            "actual_path": [
+                [
+                    42.0793,
+                    10.3607
+                ],
+                [
+                    41.9793,
+                    10.2607
+                ]
+            ],
+            "forecast_path": [
+                [
+                    42.0793,
+                    10.3607
+                ],
+                [
+                    42.4793,
+                    10.8607
+                ]
+            ],
+            "cep_radius_km": 1.0
+        },
+        {
+            "id": "STORM_12",
+            "type": "Sistema Convettivo a Mesoscala",
+            "center": [
+                41.3884,
+                6.228
+            ],
+            "radius_km": 22.5,
+            "speed_kmh": 42.0,
+            "height_km": 11.5,
+            "intensity": "Fase Temporale Forte",
+            "actual_path": [
+                [
+                    41.3884,
+                    6.228
+                ],
+                [
+                    41.2884,
+                    6.128
+                ]
+            ],
+            "forecast_path": [
+                [
+                    41.3884,
+                    6.228
+                ],
+                [
+                    41.7884,
+                    6.728
+                ]
+            ],
+            "cep_radius_km": 1.0
+        },
+        {
+            "id": "STORM_13",
+            "type": "Sistema Convettivo a Mesoscala",
+            "center": [
+                41.2075,
+                7.9343
+            ],
+            "radius_km": 22.5,
+            "speed_kmh": 42.0,
+            "height_km": 11.5,
+            "intensity": "Fase Temporale Forte",
+            "actual_path": [
+                [
+                    41.2075,
+                    7.9343
+                ],
+                [
+                    41.1075,
+                    7.8343
+                ]
+            ],
+            "forecast_path": [
+                [
+                    41.2075,
+                    7.9343
+                ],
+                [
+                    41.6075,
+                    8.4343
+                ]
+            ],
+            "cep_radius_km": 1.0
+        },
+        {
+            "id": "STORM_14",
+            "type": "Sistema Convettivo a Mesoscala",
+            "center": [
+                39.9885,
+                7.4171
+            ],
+            "radius_km": 22.5,
+            "speed_kmh": 42.0,
+            "height_km": 11.5,
+            "intensity": "Fase Temporale Forte",
+            "actual_path": [
+                [
+                    39.9885,
+                    7.4171
+                ],
+                [
+                    39.8885,
+                    7.3171
+                ]
+            ],
+            "forecast_path": [
+                [
+                    39.9885,
+                    7.4171
+                ],
+                [
+                    40.3885,
+                    7.9171
+                ]
+            ],
+            "cep_radius_km": 1.0
+        },
+        {
+            "id": "STORM_15",
+            "type": "Sistema Convettivo a Mesoscala",
+            "center": [
+                39.7305,
+                7.5643
+            ],
+            "radius_km": 22.5,
+            "speed_kmh": 42.0,
+            "height_km": 11.5,
+            "intensity": "Fase Temporale Forte",
+            "actual_path": [
+                [
+                    39.7305,
+                    7.5643
+                ],
+                [
+                    39.6305,
+                    7.4643
+                ]
+            ],
+            "forecast_path": [
+                [
+                    39.7305,
+                    7.5643
+                ],
+                [
+                    40.1305,
+                    8.0643
+                ]
+            ],
+            "cep_radius_km": 1.0
         }
-      ]
-    }
-  ],
-  "timestamp": "2026-10-02T09:53:12.413062+00:00"
+    ]
 }
