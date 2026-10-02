@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nowcasting Italia - Radar</title>
+    <title>Nowcasting Italia - Radar & Vectors</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; background: #111; }
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; background: #f4f4f4; }
         #map { height: 100vh; width: 100vw; }
+        .leaflet-popup-content { font-family: monospace; font-size: 12px; }
     </style>
 </head>
 <body>
@@ -17,27 +18,62 @@
     <script>
         var map = L.map('map').setView([42.0, 12.5], 6);
 
-        // Mappa standard OpenStreetMap pura al 100%, zero Carto, zero chiavi API
+        // Mappa standard OpenStreetMap pulita
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; OpenStreetMap'
         }).addTo(map);
 
-        // Caricamento dati radar con forzatura anti-cache
+        // Layer per contenere centroidi e vettori generati dal tuo script Python
+        var vectorLayer = L.layerGroup().addTo(map);
+
+        // Caricamento dati da centroids.json con forzatura anti-cache
         fetch('centroids.json?v=' + new Date().getTime())
             .then(res => res.json())
             .then(data => {
-                if (data && data.length > 0 && data[0].path) {
+                // 1. Carica il layer radar se è presente il blocco tile
+                if (Array.isArray(data) && data.length > 0 && data[0].path) {
                     let radar = data[0];
                     let radarUrl = radar.host + radar.path + '/256/{z}/{x}/{y}/2/1_1.png';
-                    
-                    L.tileLayer(radarUrl, {
-                        tileSize: 256,
-                        opacity: 0.85
-                    }).addTo(map);
+                    L.tileLayer(radarUrl, { tileSize: 256, opacity: 0.85 }).addTo(map);
                 }
+
+                // 2. Estrae e disegna centroidi e vettori (supporta array o formato GeoJSON)
+                let items = data.features ? data.features : data;
+                if (Array.isArray(items)) {
+                    items.forEach(item => {
+                        // Estrae coordinate (gestisce sia proprietà dirette che GeoJSON geometry)
+                        let lat = item.lat || (item.geometry && item.geometry.coordinates[1]);
+                        let lon = item.lon || (item.geometry && item.geometry.coordinates[0]);
+
+                        if (lat && lon) {
+                            // Disegna il centroide del nucleo
+                            let marker = L.circleMarker([lat, lon], {
+                                radius: 7,
+                                color: '#ff2200',
+                                fillColor: '#ffcc00',
+                                fillOpacity: 0.9,
+                                weight: 2
+                            }).bindPopup(`<b>Centroide Temporalesco</b><br>ID: ${item.id || 'N/D'}<br>Intensità: ${item.intensity || 'N/D'}`);
+                            
+                            vectorLayer.addLayer(marker);
+
+                    // Disegna il vettore di spostamento se configurato (es. coordinate di arrivo o offset)
+                    let vLat = item.vector_lat || item.dest_lat;
+                    let vLon = item.vector_lon || item.dest_lon;
+                    if (vLat && vLon) {
+                        let line = L.polyline([[lat, lon], [vLat, vLon]], {
+                            color: '#00e5ff',
+                            weight: 2.5,
+                            dashArray: '5, 5'
+                        });
+                        vectorLayer.addLayer(line);
+                    }
+                }
+            });
+        }
             })
-            .catch(err => console.error(err));
+            .catch(err => console.error('Errore caricamento centroidi/vettori:', err));
     </script>
 </body>
 </html>
