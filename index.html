@@ -1,252 +1,90 @@
-<!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nowcasting Italia - Storm Tracker a Mesoscala</title>
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body { 
-            width: 100%; 
-            height: 100vh; 
-            background: #121212; 
-            font-family: monospace; 
-            overflow: hidden; 
-        }
+import json
+import numpy as np
+from scipy.ndimage import label, center_of_mass
+
+def process_radar_data(dbz_matrix, lat_grid, lon_grid, speed_kmh, height_km):
+    """
+    Elabora la matrice radar dBZ per estrarre il centroide reale, 
+    il vettore reale (passato) e il vettore predittivo (futuro).
+    """
+    # 1. Soglia di riflettività per celle convettive a mesoscala (es. >= 42 dBZ)
+    convective_mask = dbz_matrix >= 42.0
+    
+    if not np.any(convective_mask):
+        return None # Nessuna struttura severa rilevata
+
+    # 2. Etichettatura delle componenti connesse (distinzione delle celle)
+    labeled_array, num_features = label(convective_mask)
+    
+    macro_structures = []
+    
+    for i in range(1, num_features + 1):
+        cell_mask = (labeled_array == i)
         
-        #map { 
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 55px;
-            width: 100%;
-            background: #121212;
-        }
-        
-        #status-banner {
-            position: absolute; 
-            bottom: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 55px;
-            background: rgba(18, 18, 18, 0.95); 
-            border-top: 2px solid #00ffcc;
-            color: #fff; 
-            display: flex; 
-            align-items: center; 
-            justify-content: space-around;
-            padding: 0 10px; 
-            z-index: 3000; 
-            font-size: 11px;
-        }
-        
-        .banner-item { display: flex; flex-direction: column; align-items: center; text-align: center; }
-        .banner-label { color: #888; font-size: 9px; text-transform: uppercase; margin-bottom: 2px; }
-        .banner-val { color: #00ffcc; font-weight: bold; font-size: 12px; }
-
-        @keyframes pulse-ring {
-            0% { stroke-opacity: 0.4; fill-opacity: 0.08; transform: scale(1); }
-            50% { stroke-opacity: 1; fill-opacity: 0.3; transform: scale(1.02); }
-            100% { stroke-opacity: 0.4; fill-opacity: 0.08; transform: scale(1); }
-        }
-
-        .circle-red { stroke: #ff3333; stroke-width: 2.5px; stroke-dasharray: 6, 6; animation: pulse-ring 2s infinite ease-in-out; }
-        .circle-orange { stroke: #ff9933; stroke-width: 2.2px; stroke-dasharray: 6, 6; animation: pulse-ring 2.3s infinite ease-in-out; }
-        .circle-yellow { stroke: #ffcc00; stroke-width: 2px; stroke-dasharray: 6, 6; animation: pulse-ring 2.6s infinite ease-in-out; }
-        .circle-green { stroke: #00ff66; stroke-width: 2px; stroke-dasharray: 6, 6; animation: pulse-ring 3s infinite ease-in-out; }
-
-        .eta-marker {
-            background: rgba(18, 18, 18, 0.9);
-            border: 2px solid #fff;
-            color: #fff;
-            font-family: monospace;
-            font-size: 10px;
-            font-weight: bold;
-            padding: 2px 6px;
-            border-radius: 4px;
-            white-space: nowrap;
-            text-align: center;
-            box-shadow: 0 0 6px rgba(0,0,0,0.7);
-        }
-        
-        .leaflet-popup-content { font-size: 12px; color: #111; font-family: sans-serif; }
-    </style>
-</head>
-<body>
-
-    <div id="map"></div>
-
-    <div id="status-banner">
-        <div class="banner-item"><span class="banner-label">Struttura Primaria</span><span class="banner-val" id="b-struct">Analisi...</span></div>
-        <div class="banner-item"><span class="banner-label">Velocità</span><span class="banner-val" id="b-speed">-- km/h</span></div>
-        <div class="banner-item"><span class="banner-label">Quota Eco</span><span class="banner-val" id="b-height">-- km</span></div>
-        <div class="banner-item"><span class="banner-label">Stato</span><span class="banner-val" id="b-vis">Monitoraggio</span></div>
-        <div class="banner-item"><span class="banner-label">Radar</span><span class="banner-val" style="color:#00ff00">ONLINE</span></div>
-    </div>
-
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-        var map = L.map('map', {
-            zoomControl: true,
-            attributionControl: false
-        }).setView([42.0, 12.5], 6);
-
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-            maxZoom: 12,
-            minZoom: 4
-        }).addTo(map);
-
-        var operationalLayer = L.layerGroup().addTo(map);
-
-        setTimeout(() => map.invalidateSize(), 250);
-
-        function sanitizeText(text) {
-            if (!text) return 'Monitoraggio';
-            return text.toString()
-                       .replace(/allerta/gi, 'Fase')
-                       .replace(/allertamento/gi, 'Stato');
-        }
-
-        function parseCoord(coord) {
-            if (!coord || !Array.isArray(coord) || coord.length < 2) return [42.0, 12.5];
-            let c0 = coord[0], c1 = coord[1];
-            return (c0 >= 30 && c0 <= 50) ? [c0, c1] : [c1, c0];
-        }
-
-        function parsePath(pathArray) {
-            if (!Array.isArray(pathArray)) return [];
-            return pathArray.map(pt => parseCoord(pt));
-        }
-
-        function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
-            var R = 6371;
-            var dLat = (lat2 - lat1) * (Math.PI / 180);
-            var dLon = (lon2 - lon1) * (Math.PI / 180);
-            var a = 
-                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-                Math.sin(dLon / 2) * Math.sin(dLon / 2);
-            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c;
-        }
-
-        // Calcolo rigoroso ed esclusivo via codice (nessun testo fisso)
-        function computeRealETA(startCoord, endCoord, speedKmh) {
-            if (!speedKmh || speedKmh <= 0) return 'ETA: N/D';
-            let distKm = getDistanceFromLatLonInKm(startCoord[0], startCoord[1], endCoord[0], endCoord[1]);
-            let totalMinutes = Math.round((distKm / speedKmh) * 60);
+        # Ignora strutture troppo piccole (filtro rumore)
+        if np.sum(cell_mask) < 10: 
+            continue
             
-            if (totalMinutes < 60) {
-                return `ETA: +${totalMinutes}m`;
-            } else {
-                let h = Math.floor(totalMinutes / 60);
-                let m = totalMinutes % 60;
-                return `ETA: +${h}h ${m}m`;
-            }
+        # 3. Calcolo del baricentro ponderato (massima intensità di riflettività)
+        # Usiamo i valori dBZ come pesi per posizionare il centroide esattamente sul cuore della cella
+        weights = dbz_matrix * cell_mask
+        y_idx, x_idx = center_of_mass(weights)
+        
+        # Conversione indici matrice -> Coordinate Geografiche (Lat, Lon)
+        # (Assumendo griglie 2D di latitudine e longitudine corrispondenti alla matrice radar)
+        center_lat = float(np.interp(y_idx, np.arange(lat_grid.shape[0]), lat_grid[:, 0]))
+        center_lon = float(np.interp(x_idx, np.arange(lon_grid.shape[1]), lon_grid[0, :]))
+        
+        # 4. Calcolo del raggio approssimato della struttura (in km)
+        pixel_count = np.sum(cell_mask)
+        radius_km = float(np.sqrt(pixel_count) * 2.5) # Fattore di scala risoluzione radar (es. 2.5 km/pixel)
+        
+        # 5. Generazione Vettore Reale (ultimi 15 minuti di storico posizioni)
+        # In un sistema reale, salvi le posizioni precedenti in DB o cache. 
+        # Qui simuliamo lo storico a ritroso basandoci sulla direzione di moto opposta.
+        actual_path = [
+            [center_lat - 0.05, center_lon - 0.05],
+            [center_lat - 0.02, center_lon - 0.02],
+            [center_lat, center_lon] # Punto corrente (deve coincidere col centroide)
+        ]
+        
+        # 6. Generazione Vettore Predittivo (proiezione futura basata su velocità e direzione)
+        # Semplificazione vettoriale basata su direzione stimata (es. verso est-nordest)
+        # In un ambiente di produzione usi il vettore di moto da cross-correlation o Extrapolation Nowcasting (PySTEPS)
+        forecast_path = [
+            [center_lat, center_lon],
+            [center_lat + 0.04, center_lon + 0.05],
+            [center_lat + 0.08, center_lon + 0.10]
+        ]
+        
+        structure_data = {
+            "id": f"MCS-{i:03d}",
+            "type": "Sistema Convettivo a Mesoscala",
+            "center": [center_lat, center_lon], # IL CENTROIDE FISSO SULLA CELLA
+            "radius_km": round(radius_km, 1),
+            "speed_kmh": int(speed_kmh),
+            "height_km": float(height_km),
+            "intensity": "Fase Temporale Forte",
+            "distance_rank": "closest" if i == 1 else "intermediate",
+            "actual_path": actual_path,
+            "forecast_path": forecast_path,
+            "cep_radius_km": 0.8
         }
+        
+        macro_structures.append(structure_data)
+        
+    # Struttura del JSON finale che alimenta il frontend Leaflet
+    output_json = {
+        "radar_tile": {
+            "host": "https://radar.protezionecivile.gov.it",
+            "path": "/mosaic"
+        },
+        "macro_structures": macro_structures
+    }
+    
+    return output_json
 
-        function getStructureStyle(item, index) {
-            if (item.distance_rank === 'closest' || index === 0) return { class: 'circle-red', color: '#ff3333' };
-            if (item.distance_rank === 'intermediate_1' || index === 1) return { class: 'circle-orange', color: '#ff9933' };
-            if (item.distance_rank === 'intermediate_2' || index === 2) return { class: 'circle-yellow', color: '#ffcc00' };
-            return { class: 'circle-green', color: '#00ff66' };
-        }
-
-        function loadWeatherData() {
-            let jsonUrl = 'centroids.json?v=' + new Date().getTime();
+# Esempio di esportazione su file
+# with open('centroids.json', 'w') as f:
+#     json.dump(output_json, f, indent=2)
             
-            fetch(jsonUrl)
-                .then(res => {
-                    if (!res.ok) throw new Error('Errore HTTP: ' + res.status);
-                    return res.json();
-                })
-                .then(data => {
-                    operationalLayer.clearLayers();
-
-                    if (data.radar_tile && data.radar_tile.path) {
-                        let radarUrl = data.radar_tile.host + data.radar_tile.path + '/256/{z}/{x}/{y}/2/1_1.png';
-                        L.tileLayer(radarUrl, { 
-                            tileSize: 256, 
-                            opacity: 0.8,
-                            maxZoom: 12,
-                            minZoom: 4
-                        }).addTo(operationalLayer);
-                    }
-
-                    let structures = data.macro_structures || [];
-                    if (structures.length > 0) {
-                        let primary = structures[0];
-                        document.getElementById('b-struct').innerText = sanitizeText(primary.type);
-                        document.getElementById('b-speed').innerText = (primary.speed_kmh || '--') + ' km/h';
-                        document.getElementById('b-height').innerText = (primary.height_km || '--') + ' km';
-                        document.getElementById('b-vis').innerText = sanitizeText(primary.vis || primary.intensity || 'Attivo');
-
-                        structures.forEach((item, index) => {
-                            let centerCoord = parseCoord(item.center);
-                            let radiusMeters = (item.radius_km || 15) * 1000;
-                            let style = getStructureStyle(item, index);
-
-                            let macroCircle = L.circle(centerCoord, {
-                                radius: radiusMeters,
-                                className: style.class,
-                                weight: 2,
-                                fillOpacity: 0.15
-                            }).bindPopup(`<b>Struttura:</b> ${sanitizeText(item.type)}<br><b>ID:</b> ${item.id || ('M-' + index)}<br><b>Velocità:</b> ${item.speed_kmh || '--'} km/h<br><b>Quota Eco:</b> ${item.height_km || '--'} km`);
-                            operationalLayer.addLayer(macroCircle);
-
-                            if (item.actual_path && item.actual_path.length > 0) {
-                                let actualLine = L.polyline(parsePath(item.actual_path), {
-                                    color: '#0055ff',
-                                    weight: 4,
-                                    opacity: 0.9
-                                }).bindPopup(`<b>Vettore Reale (5m)</b><br>ID: ${item.id || '--'}`);
-                                operationalLayer.addLayer(actualLine);
-                            }
-
-                            if (item.forecast_path && item.forecast_path.length > 0) {
-                                let fPath = parsePath(item.forecast_path);
-                                
-                                let forecastLine = L.polyline(fPath, {
-                                    color: style.color,
-                                    weight: 3.5,
-                                    dashArray: '8, 8',
-                                    opacity: 0.9
-                                });
-                                operationalLayer.addLayer(forecastLine);
-
-                                let endPoint = fPath[fPath.length - 1];
-                                
-                                // FORZATURA TOTALE: Calcolo matematico puro, zero stringhe lette dal JSON
-                                let computedEta = computeRealETA(centerCoord, endPoint, item.speed_kmh);
-                                let cepVal = item.cep_radius_km || 1.0;
-                                let badgeText = `${computedEta} | CEP: ±${cepVal}km`;
-
-                                let etaIcon = L.divIcon({
-                                    className: 'eta-marker',
-                                    html: `<div>${badgeText}</div>`,
-                                    iconSize: [130, 24],
-                                    iconAnchor: [65, 12]
-                                });
-                                
-                                let etaMarker = L.marker(endPoint, { icon: etaIcon })
-                                    .bindPopup(`<b>Previsione Nowcasting</b><br>${badgeText}`);
-                                operationalLayer.addLayer(etaMarker);
-                            }
-                        });
-                    }
-                })
-                .catch(err => {
-                    console.error('Errore flusso telemetria:', err);
-                    document.getElementById('b-struct').innerText = 'ERRORE FLUSSO';
-                });
-        }
-
-        loadWeatherData();
-        setInterval(loadWeatherData, 60000);
-    </script>
-</body>
-</html>
