@@ -2,103 +2,248 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Nowcasting Italia - Radar Live</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nowcasting Italia - Storm Tracker a Mesoscala</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; background: #111; color: #fff; font-family: sans-serif; }
-        #map { width: 100%; height: 100vh; }
-        .info-box {
-            position: absolute; bottom: 20px; right: 20px; background: rgba(0,0,0,0.85);
-            padding: 12px 18px; border-radius: 6px; border: 1px solid #00ffcc; z-index: 1000;
-            font-size: 14px; box-shadow: 0 0 10px rgba(0,255,204,0.3);
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { 
+            width: 100%; 
+            height: 100vh; 
+            background: #121212; 
+            font-family: monospace; 
+            overflow: hidden; 
         }
+        
+        #map { 
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 55px;
+            width: 100%;
+            background: #121212;
+        }
+        
+        #status-banner {
+            position: absolute; 
+            bottom: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 55px;
+            background: rgba(18, 18, 18, 0.95); 
+            border-top: 2px solid #00ffcc;
+            color: #fff; 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-around;
+            padding: 0 10px; 
+            z-index: 3000; 
+            font-size: 11px;
+        }
+        
+        .banner-item { display: flex; flex-direction: column; align-items: center; text-align: center; }
+        .banner-label { color: #888; font-size: 9px; text-transform: uppercase; margin-bottom: 2px; }
+        .banner-val { color: #00ffcc; font-weight: bold; font-size: 12px; }
+
+        @keyframes pulse-ring {
+            0% { stroke-opacity: 0.4; fill-opacity: 0.08; transform: scale(1); }
+            50% { stroke-opacity: 1; fill-opacity: 0.3; transform: scale(1.02); }
+            100% { stroke-opacity: 0.4; fill-opacity: 0.08; transform: scale(1); }
+        }
+
+        .circle-red { stroke: #ff3333; stroke-width: 2.5px; stroke-dasharray: 6, 6; animation: pulse-ring 2s infinite ease-in-out; }
+        .circle-orange { stroke: #ff9933; stroke-width: 2.2px; stroke-dasharray: 6, 6; animation: pulse-ring 2.3s infinite ease-in-out; }
+        .circle-yellow { stroke: #ffcc00; stroke-width: 2px; stroke-dasharray: 6, 6; animation: pulse-ring 2.6s infinite ease-in-out; }
+        .circle-green { stroke: #00ff66; stroke-width: 2px; stroke-dasharray: 6, 6; animation: pulse-ring 3s infinite ease-in-out; }
+
+        .eta-marker {
+            background: rgba(18, 18, 18, 0.9);
+            border: 2px solid #fff;
+            color: #fff;
+            font-family: monospace;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 4px;
+            white-space: nowrap;
+            text-align: center;
+            box-shadow: 0 0 6px rgba(0,0,0,0.7);
+        }
+        
+        .leaflet-popup-content { font-size: 12px; color: #111; font-family: sans-serif; }
     </style>
 </head>
 <body>
+
     <div id="map"></div>
-    <div class="info-box" id="eta-info">Caricamento dati radar in corso...</div>
+
+    <div id="status-banner">
+        <div class="banner-item"><span class="banner-label">Struttura Primaria</span><span class="banner-val" id="b-struct">Analisi...</span></div>
+        <div class="banner-item"><span class="banner-label">Velocità</span><span class="banner-val" id="b-speed">-- km/h</span></div>
+        <div class="banner-item"><span class="banner-label">Quota Eco</span><span class="banner-val" id="b-height">-- km</span></div>
+        <div class="banner-item"><span class="banner-label">Stato</span><span class="banner-val" id="b-vis">Monitoraggio</span></div>
+        <div class="banner-item"><span class="banner-label">Radar</span><span class="banner-val" style="color:#00ff00">ONLINE</span></div>
+    </div>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Inizializzazione mappa centrata sull'area tirrenica / Italia
-        const map = L.map('map').setView([41.0, 10.5], 6);
+        var map = L.map('map', {
+            zoomControl: true,
+            attributionControl: false
+        }).setView([42.0, 12.5], 6);
 
-        // Mappa base scura
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; OpenStreetMap &copy; CARTO',
-            maxZoom: 19
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 12,
+            minZoom: 4
         }).addTo(map);
 
-        // Funzione di calcolo distanza Haversine (km)
+        var operationalLayer = L.layerGroup().addTo(map);
+
+        setTimeout(() => map.invalidateSize(), 250);
+
+        function sanitizeText(text) {
+            if (!text) return 'Monitoraggio';
+            return text.toString()
+                       .replace(/allerta/gi, 'Fase')
+                       .replace(/allertamento/gi, 'Stato');
+        }
+
+        function parseCoord(coord) {
+            if (!coord || !Array.isArray(coord) || coord.length < 2) return [42.0, 12.5];
+            let c0 = coord[0], c1 = coord[1];
+            return (c0 >= 30 && c0 <= 50) ? [c0, c1] : [c1, c0];
+        }
+
+        function parsePath(pathArray) {
+            if (!Array.isArray(pathArray)) return [];
+            return pathArray.map(pt => parseCoord(pt));
+        }
+
         function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
-            const R = 6371; 
-            const dLat = (lat2 - lat1) * (Math.PI / 180);
-            const dLon = (lon2 - lon1) * (Math.PI / 180);
-            const a = 
-                Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * 
-                Math.sin(dLon/2) * Math.sin(dLon/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            var R = 6371;
+            var dLat = (lat2 - lat1) * (Math.PI / 180);
+            var dLon = (lon2 - lon1) * (Math.PI / 180);
+            var a = 
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
             return R * c;
         }
 
-        // Punto di riferimento target (Roma)
-        const targetRome = { lat: 41.9028, lon: 12.4964 };
+        function computeRealETA(startCoord, endCoord, speedKmh) {
+            if (!speedKmh || speedKmh <= 0) return 'ETA: N/D';
+            let distKm = getDistanceFromLatLonInKm(startCoord[0], startCoord[1], endCoord[0], endCoord[1]);
+            let totalMinutes = Math.round((distKm / speedKmh) * 60);
+            
+            if (totalMinutes < 60) {
+                return `ETA: +${totalMinutes}m`;
+            } else {
+                let h = Math.floor(totalMinutes / 60);
+                let m = totalMinutes % 60;
+                return `ETA: +${h}h ${m}m`;
+            }
+        }
 
-        // Fetch del file centroids.json con bypass della cache (?v=timestamp)
-        fetch('centroids.json?v=' + new Date().getTime())
-            .then(response => response.json())
-            .then(data => {
-                if (!data.macro_structures || data.macro_structures.length === 0) {
-                    document.getElementById('eta-info').innerText = 'Nessuna struttura severa rilevata.';
-                    return;
-                }
+        function getStructureStyle(item, index) {
+            if (item.distance_rank === 'closest' || index === 0) return { class: 'circle-red', color: '#ff3333' };
+            if (item.distance_rank === 'intermediate_1' || index === 1) return { class: 'circle-orange', color: '#ff9933' };
+            if (item.distance_rank === 'intermediate_2' || index === 2) return { class: 'circle-yellow', color: '#ffcc00' };
+            return { class: 'circle-green', color: '#00ff66' };
+        }
 
-                data.macro_structures.forEach(cell => {
-                    const [lat, lon] = cell.center;
-                    const speed = cell.speed_kmh || 42;
+        function loadWeatherData() {
+            let jsonUrl = 'centroids.json?v=' + new Date().getTime();
+            
+            fetch(jsonUrl)
+                .then(res => {
+                    if (!res.ok) throw new Error('Errore HTTP: ' + res.status);
+                    return res.json();
+                })
+                .then(data => {
+                    operationalLayer.clearLayers();
 
-                    // 1. Disegna il cerchio del centroide sulla cella corretta
-                    const circle = L.circle([lat, lon], {
-                        color: 'red',
-                        fillColor: '#ff3333',
-                        fillOpacity: 0.4,
-                        radius: (cell.radius_km || 25) * 1000
-                    }).addTo(map);
-
-                    // 2. Vettore Reale (passato - linea blu)
-                    if (cell.actual_path && cell.actual_path.length > 0) {
-                        L.polyline(cell.actual_path, { color: '#0088ff', weight: 4 }).addTo(map);
+                    if (data.radar_tile && data.radar_tile.path) {
+                        let radarUrl = data.radar_tile.host + data.radar_tile.path + '/256/{z}/{x}/{y}/2/1_1.png';
+                        L.tileLayer(radarUrl, { 
+                            tileSize: 256, 
+                            opacity: 0.8,
+                            maxZoom: 12,
+                            minZoom: 4
+                        }).addTo(operationalLayer);
                     }
 
-                    // 3. Vettore Predittivo (futuro - linea tratteggiata rossa)
-                    if (cell.forecast_path && cell.forecast_path.length > 0) {
-                        L.polyline(cell.forecast_path, { color: '#ff3333', weight: 4, dashArray: '6, 6' }).addTo(map);
+                    let structures = data.macro_structures || [];
+                    if (structures.length > 0) {
+                        let primary = structures[0];
+                        document.getElementById('b-struct').innerText = sanitizeText(primary.type);
+                        document.getElementById('b-speed').innerText = (primary.speed_kmh || '--') + ' km/h';
+                        document.getElementById('b-height').innerText = (primary.height_km || '--') + ' km';
+                        document.getElementById('b-vis').innerText = sanitizeText(primary.vis || primary.intensity || 'Attivo');
+
+                        structures.forEach((item, index) => {
+                            let centerCoord = parseCoord(item.center);
+                            let radiusMeters = (item.radius_km || 15) * 1000;
+                            let style = getStructureStyle(item, index);
+
+                            let macroCircle = L.circle(centerCoord, {
+                                radius: radiusMeters,
+                                className: style.class,
+                                weight: 2,
+                                fillOpacity: 0.15
+                            }).bindPopup(`<b>Struttura:</b> ${sanitizeText(item.type)}<br><b>ID:</b> ${item.id || ('M-' + index)}<br><b>Velocità:</b> ${item.speed_kmh || '--'} km/h<br><b>Quota Eco:</b> ${item.height_km || '--'} km`);
+                            operationalLayer.addLayer(macroCircle);
+
+                            if (item.actual_path && item.actual_path.length > 0) {
+                                let actualLine = L.polyline(parsePath(item.actual_path), {
+                                    color: '#0055ff',
+                                    weight: 4,
+                                    opacity: 0.9
+                                }).bindPopup(`<b>Vettore Reale (5m)</b><br>ID: ${item.id || '--'}`);
+                                operationalLayer.addLayer(actualLine);
+                            }
+
+                            if (item.forecast_path && item.forecast_path.length > 0) {
+                                let fPath = parsePath(item.forecast_path);
+                                
+                                let forecastLine = L.polyline(fPath, {
+                                    color: style.color,
+                                    weight: 3.5,
+                                    dashArray: '8, 8',
+                                    opacity: 0.9
+                                });
+                                operationalLayer.addLayer(forecastLine);
+
+                                let endPoint = fPath[fPath.length - 1];
+                                let computedEta = computeRealETA(centerCoord, endPoint, item.speed_kmh);
+                                let cepVal = item.cep_radius_km || 1.0;
+                                let badgeText = `${computedEta} | CEP: ±${cepVal}km`;
+
+                                let etaIcon = L.divIcon({
+                                    className: 'eta-marker',
+                                    html: `<div>${badgeText}</div>`,
+                                    iconSize: [130, 24],
+                                    iconAnchor: [65, 12]
+                                });
+                                
+                                let etaMarker = L.marker(endPoint, { icon: etaIcon })
+                                    .bindPopup(`<b>Previsione Nowcasting</b><br>${badgeText}`);
+                                operationalLayer.addLayer(etaMarker);
+                            }
+                        });
                     }
-
-                    // 4. Calcolo ETA dinamico verso Roma
-                    const distKm = getDistanceFromLatLonInKm(lat, lon, targetRome.lat, targetRome.lon);
-                    const hours = distKm / speed;
-                    const totalMinutes = Math.round(hours * 60);
-                    const h = Math.floor(totalMinutes / 60);
-                    const m = totalMinutes % 60;
-                    const etaString = h > 0 ? `+${h}h ${m}m` : `+${m}m`;
-
-                    // Aggiorna il box grafico in basso a destra
-                    document.getElementById('eta-info').innerHTML = 
-                        `<b>${cell.type}</b><br>ETA Roma: <b>${etaString}</b> | Distanza: ~${Math.round(distKm)} km`;
-
-                    // Popup informativo sul centroide
-                    circle.bindPopup(`<b>${cell.id}</b><br>${cell.intensity}<br>Velocità: ${speed} km/h<br>ETA Roma: ${etaString}`);
+                })
+                .catch(err => {
+                    console.error('Errore flusso telemetria:', err);
+                    document.getElementById('b-struct').innerText = 'ERRORE FLUSSO';
                 });
-            })
-            .catch(err => {
-                console.error('Errore nel caricamento del file JSON:', err);
-                document.getElementById('eta-info').innerText = 'Errore di lettura dati.';
-            });
+        }
+
+        loadWeatherData();
+        setInterval(loadWeatherData, 60000);
     </script>
 </body>
 </html>
