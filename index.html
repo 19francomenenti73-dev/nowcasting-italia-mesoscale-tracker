@@ -1,74 +1,7 @@
-<!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mesoscale Radar Nowcasting System</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <style>
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; background: #0b0b0b; font-family: monospace; overflow: hidden; }
-        #map { height: calc(100vh - 55px); width: 100vw; }
-        
-        /* Banner in basso */
-        #status-banner {
-            position: fixed; bottom: 0; left: 0; width: 100%; height: 55px;
-            background: rgba(15, 15, 15, 0.92); border-top: 2px solid #00ffcc;
-            color: #fff; display: flex; align-items: center; justify-content: space-around;
-            padding: 0 15px; box-sizing: border-box; z-index: 2000; font-size: 12px;
-        }
-        .banner-item { display: flex; flex-direction: column; align-items: center; }
-        .banner-label { color: #888; font-size: 10px; text-transform: uppercase; }
-        .banner-val { color: #00ffcc; font-weight: bold; font-size: 13px; }
-
-        /* Stili animati Leaflet personalizzati */
-        @keyframes pulse-red {
-            0% { transform: scale(0.95); opacity: 0.9; box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
-            70% { transform: scale(1.05); opacity: 0.5; box-shadow: 0 0 0 12px rgba(255, 0, 0, 0); }
-            100% { transform: scale(0.95); opacity: 0.9; box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
-        }
-        @keyframes pulse-green {
-            0% { transform: scale(0.95); opacity: 0.9; box-shadow: 0 0 0 0 rgba(0, 255, 100, 0.7); }
-            70% { transform: scale(1.05); opacity: 0.5; box-shadow: 0 0 0 12px rgba(0, 255, 100, 0); }
-            100% { transform: scale(0.95); opacity: 0.9; box-shadow: 0 0 0 0 rgba(0, 255, 100, 0); }
-        }
-        @keyframes pulse-black-dot {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.4); opacity: 0.4; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-
-        .macro-circle-red {
-            border: 2px dashed #ff2222; background: rgba(255, 0, 0, 0.08);
-            border-radius: 50%; animation: pulse-red 2s infinite;
-        }
-        .macro-circle-green {
-            border: 2px dashed #00ff66; background: rgba(0, 255, 100, 0.08);
-            border-radius: 50%; animation: pulse-green 3s infinite;
-        }
-        .nuclei-dot {
-            background: #000; border: 2px solid #fff; border-radius: 50%;
-            width: 10px; height: 10px; animation: pulse-black-dot 1.5s infinite;
-        }
-        .leaflet-popup-content { font-size: 12px; line-height: 1.4; color: #111; }
-    </style>
-</head>
-<body>
-
-    <div id="map"></div>
-
-    <div id="status-banner">
-        <div class="banner-item"><span class="banner-label">Macrostruttura</span><span class="banner-val" id="b-struct">In attesa...</span></div>
-        <div class="banner-item"><span class="banner-label">Velocità</span><span class="banner-val" id="b-speed">-- km/h</span></div>
-        <div class="banner-item"><span class="banner-label">Altezza Eco</span><span class="banner-val" id="b-height">-- km</span></div>
-        <div class="banner-item"><span class="banner-label">VIS</span><span class="banner-val" id="b-vis">-- km</span></div>
-        <div class="banner-item"><span class="banner-label">Stato Radar</span><span class="banner-val" style="color:#00ff00">ONLINE</span></div>
-    </div>
-
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         var map = L.map('map').setView([42.0, 12.5], 6);
 
-        // Mappa OpenStreetMap pulita standard
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; OpenStreetMap'
@@ -77,12 +10,17 @@
         var operationalLayer = L.layerGroup().addTo(map);
 
         function loadWeatherData() {
-            fetch('centroids.json?v=' + new Date().getTime())
-                .then(res => res.json())
+            // Sostituisci con il tuo URL assoluto di GitHub Pages se usi un iframe esterno
+            let jsonUrl = 'centroids.json?v=' + new Date().getTime();
+            
+            fetch(jsonUrl)
+                .then(res => {
+                    if (!res.ok) throw new Error('HTTP error! status: ' + res.status);
+                    return res.json();
+                })
                 .then(data => {
                     operationalLayer.clearLayers();
 
-                    // 1. Carica il layer radar di fondo
                     if (data.radar_tile && data.radar_tile.path) {
                         let radarUrl = data.radar_tile.host + data.radar_tile.path + '/256/{z}/{x}/{y}/2/1_1.png';
                         L.tileLayer(radarUrl, { tileSize: 256, opacity: 0.75 }).addTo(map);
@@ -90,7 +28,6 @@
 
                     let structures = data.macro_structures || [];
                     if (structures.length > 0) {
-                        // Aggiorna il banner con la struttura più vicina
                         let primary = structures[0];
                         document.getElementById('b-struct').innerText = primary.type;
                         document.getElementById('b-speed').innerText = primary.speed_kmh + ' km/h';
@@ -104,7 +41,6 @@
                             let circleClass = isClosest ? 'macro-circle-red' : 'macro-circle-green';
                             let lineColor = isClosest ? '#ff2222' : '#00ff66';
 
-                            // A. Cerchio della macrostruttura (Rosso pulsante il più vicino, Verde il più lontano)
                             let macroCircle = L.circle(center, {
                                 radius: radiusMeters,
                                 className: circleClass,
@@ -113,17 +49,14 @@
                             }).bindPopup(`<b>Struttura:</b> ${item.type}<br><b>ID:</b> ${item.id}<br><b>Velocità:</b> ${item.speed_kmh} km/h<br><b>Quota:</b> ${item.height_km} km`);
                             operationalLayer.addLayer(macroCircle);
 
-                            // B. Linea Effettiva del tragitto (Blu solido, non tratteggiata)
                             if (item.actual_path && item.actual_path.length > 0) {
                                 let actualLine = L.polyline(item.actual_path, {
                                     color: '#0055ff',
-                                    weight: 4,
-                                    dashArray: null // Solida
+                                    weight: 4
                                 });
                                 operationalLayer.addLayer(actualLine);
                             }
 
-                            // C. Linea Previsionale a 3 ore (Pulsante, stesso colore del cerchio, con ETA e CEP alla fine)
                             if (item.forecast_path && item.forecast_path.length > 0) {
                                 let forecastLine = L.polyline(item.forecast_path, {
                                     color: lineColor,
@@ -134,7 +67,6 @@
                                 operationalLayer.addLayer(forecastLine);
                             }
 
-                            // D. Singoli nuclei interni evidenziati con pallino nero pulsante
                             if (item.nuclei && item.nuclei.length > 0) {
                                 item.nuclei.forEach(nuc => {
                                     let dotIcon = L.divIcon({
@@ -149,12 +81,13 @@
                         });
                     }
                 })
-                .catch(err => console.error('Errore caricamento telemetria:', err));
+                .catch(err => {
+                    console.error('Errore caricamento telemetria:', err);
+                    document.getElementById('b-struct').innerText = 'ERRORE DATI';
+                });
         }
 
-        // Caricamento iniziale e refresh ogni 60 secondi
         loadWeatherData();
         setInterval(loadWeatherData, 60000);
     </script>
-</body>
-</html>
+    
