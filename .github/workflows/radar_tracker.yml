@@ -14,8 +14,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -25,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests numpy pillow scipy
+          pip install requests
 
       - name: Run Radar Tracker Engine
         run: python tracker.py
@@ -34,11 +32,6 @@ jobs:
         run: |
           git config --global user.name "Radar Tracker Bot"
           git config --global user.email "bot@users.noreply.github.com"
-          git status
-          if [ -f centroids.json ]; then
-            git add centroids.json
-            git diff --staged --quiet || (git commit -m "Auto-update radar centroids [skip ci]" && git push origin HEAD:${{ github.ref_name }})
-          else
-            echo "Avviso: il file centroids.json non è presente nella cartella."
-            exit 0
-          fi
+          git add centroids.json
+          git diff --staged --quiet || (git commit -m "Auto-update radar centroids [skip ci]" && git push origin HEAD:${{ github.ref_name }})
+          
