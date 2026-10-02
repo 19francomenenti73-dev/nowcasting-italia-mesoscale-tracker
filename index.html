@@ -15,16 +15,15 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Inizializza la mappa centrata sull'Italia
         var map = L.map('map').setView([42.0, 12.5], 6);
 
-        // Mappa standard OpenStreetMap pulita, gratuita e senza restrizioni
+        // Mappa standard OpenStreetMap pulita, gratuita e senza alcuna restrizione
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        // Carica i dati radar in tempo reale generati dal bot
+        // Carica il radar in tempo reale dal file JSON
         fetch('centroids.json?t=' + new Date().getTime())
             .then(response => response.json())
             .then(data => {
@@ -32,7 +31,6 @@
                     let radarData = data[0];
                     let radarUrl = radarData.host + radarData.path + '/256/{z}/{x}/{y}/2/1_1.png';
                     
-                    // Sovrappone il layer radar trasparente
                     L.tileLayer(radarUrl, {
                         tileSize: 256,
                         opacity: 0.85,
