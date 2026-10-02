@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mesoscale Radar Tracker - Sala Operativa</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; }
+        #map { width: 100%; height: calc(100vh - 120px); }
+        
+        /* Barra di navigazione regionale in alto */
+        #nav-bar {
+            height: 60px;
+            background: #1e293b;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            overflow-x: auto;
+            white-space: nowrap;
+            gap: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }
+        .region-btn {
+            background: #334155;
+            color: #cbd5e1;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .region-btn:hover, .region-btn.active {
+            background: #0ea5e9;
+            color: white;
+        }
+
+        /* Banner Operativo Inferiore */
+        #bottom-banner {
+            height: 60px;
+            background: #0f172a;
+            color: #f8fafc;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            font-size: 14px;
+            border-top: 2px solid #334155;
+        }
+        .banner-item { display: flex; align-items: center; gap: 8px; }
+        .badge { background: #0ea5e9; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
+
+        /* Pulsazione dei cerchi a mesoscala */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 0.4; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+        .pulsing-centroid {
+            animation: pulse-ring 2.5s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Barra Superiore Regioni -->
+    <div id="nav-bar">
+        <button class="region-btn active" onclick="zoomToRegion('italia')">🇮🇹 Intera Italia</button>
+        <button class="region-btn" onclick="zoomToRegion('liguria')">Liguria</button>
+        <button class="region-btn" onclick="zoomToRegion('lombardia')">Lombardia</button>
+        <button class="region-btn" onclick="zoomToRegion('piemonte')">Piemonte</button>
+        <button class="region-btn" onclick="zoomToRegion('veneto')">Veneto</button>
+        <button class="region-btn" onclick="zoomToRegion('lazio')">Lazio</button>
+        <button class="region-btn" onclick="zoomToRegion('campania')">Campania</button>
+        <button class="region-btn" onclick="zoomToRegion('sicilia')">Sicilia</button>
+    </div>
+
+    <!-- Mappa Leaflet (Chiara / Non Dark) -->
+    <div id="map"></div>
+
+    <!-- Banner Inferiore di Stato -->
+    <div id="bottom-banner">
+        <div class="banner-item">
+            <span>Stato Struttura:</span>
+            <span id="banner-structure" class="badge">Nessuna selezionata</span>
+        </div>
+        <div class="banner-item">
+            <span>Probabilità:</span>
+            <span id="banner-prob" class="badge" style="background: #334155;">-- %</span>
+        </div>
+        <div class="banner-item">
+            <span>Aggiornamento:</span>
+            <span id="banner-time">In attesa di dati...</span>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Inizializzazione mappa con tema chiaro (standard OSM)
+        const map = L.map('map').setView([42.5, 12.5], 6);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '&copy; OpenStreetMap contributors | RainViewer API'
+        }).addTo(map);
+
+        // Layer Group per i centroidi e vettori
+        const trackerLayer = L.layerGroup().addTo(map);
+
+        // Gestione zoom regioni
+        const regions = {
+            'italia': { center: [42.5, 12.5], zoom: 6 },
+            'liguria': { center: [44.41, 8.93], zoom: 9 },
+            'lombardia': { center: [45.46, 9.19], zoom: 8 },
+            'piemonte': { center: [45.07, 7.68], zoom: 8 },
+            'veneto': { center: [45.44, 11.87], zoom: 8 },
+            'lazio': { center: [41.90, 12.50], zoom: 8 },
+            'campania': { center: [40.85, 14.26], zoom: 9 },
+            'sicilia': { center: [37.59, 14.01], zoom: 8 }
+        };
+
+        function zoomToRegion(reg) {
+            document.querySelectorAll('.region-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            if (regions[reg]) {
+                map.setView(regions[reg].center, regions[reg].zoom);
+            }
+        }
+
+        // Caricamento dati JSON generati dal backend GitHub Actions
+        function loadRadarData() {
+            fetch('centroids.json')
+                .then(response => response.json())
+                .then(data => {
+                    trackerLayer.clearLayers();
+                    document.getElementById('banner-time').innerText = new Date(data.radar_time * 1000).toLocaleTimeString();
+
+                    data.cores.forEach(core => {
+                        let colorHex = '#22c55e';
+                        if (core.color === 'yellow') colorHex = '#eab308';
+                        if (core.color === 'orange') colorHex = '#f97316';
+                        if (core.color === 'red') colorHex = '#ef4444';
+                        if (core.color === 'white') colorHex = '#ffffff';
+
+                        // 1. Cerchio Macro-Struttura Pulsante
+                        const macroCircle = L.circle([core.lat, core.lon], {
+                            radius: 35000,
+                            color: colorHex,
+                            fillColor: colorHex,
+                            fillOpacity: 0.2,
+                            weight: 2,
+                            className: 'pulsing-centroid'
+                        }).addTo(trackerLayer);
+
+                        // 2. Vettore Reale di Movimento (Blu)
+                        if (core.history_path && core.history_path.length > 0) {
+                            L.polyline(core.history_path, { color: '#0284c7', weight: 4, opacity: 0.8 }).addTo(trackerLayer);
+                        }
+
+                        // 3. Vettore Predittivo (Rosso tratteggiato a 3h) + Cerchio CEP
+                        if (core.predictive_vector && core.predictive_vector.length > 0) {
+                            L.polyline(core.predictive_vector, { color: '#ef4444', weight: 3, dashArray: '5, 10' }).addTo(trackerLayer);
+                            
+                            const targetPoint = core.predictive_vector[core.predictive_vector.length - 1];
+                            L.circle(targetPoint, {
+                                radius: core.cep_radius_km * 1000,
+                                color: '#ef4444',
+                                fillColor: '#ef4444',
+                                fillOpacity: 0.1,
+                                weight: 1,
+                                dashArray: '2, 4'
+                            }).bindTooltip(`ETA: ${core.eta_minutes} min (CEP)`, { permanent: true, direction: 'top' }).addTo(trackerLayer);
+                        }
+
+                        // 4. Interazione al click
+                        macroCircle.on('click', () => {
+                            document.getElementById('banner-structure').innerText = core.structure_type;
+                            document.getElementById('banner-prob').innerText = core.probability + '%';
+
+                            L.circleMarker([core.lat, core.lon], {
+                                radius: 6,
+                                color: '#000',
+                                fillColor: colorHex,
+                                fillOpacity: 1,
+                                weight: 1
+                            }).addTo(trackerLayer);
+
+                            const popupContent = `
+                                <b>Struttura:</b> ${core.structure_type}<br>
+                                <b>Altezza Max Nuclei:</b> ${core.max_height_km} km<br>
+                                <b>Riflettività:</b> ${core.max_dbz} dBZ<br>
+                                <b>Velocità:</b> ${core.velocity_kmh} km/h (${core.heading_deg}°)<br>
+                                <b>VIS:</b> ${core.vis}<br>
+                                <b>Probabilità:</b> ${core.probability}%
+                            `;
+                            macroCircle.bindPopup(popupContent).openPopup();
+                        });
+                    });
+                })
+                .catch(err => console.log("Caricamento dati in corso...", err));
+        }
+
+        loadRadarData();
+        setInterval(loadRadarData, 120000);
+    </script>
+</body>
+</html>
