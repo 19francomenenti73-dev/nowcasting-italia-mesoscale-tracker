@@ -1,73 +1,198 @@
-<style>
-    body, html { 
-        margin: 0; 
-        padding: 0; 
-        width: 100%; 
-        height: 600px; 
-        background: #0b0b0b; 
-        font-family: monospace; 
-        overflow: hidden; 
-    }
-    
-    #map { 
-        width: 100%; 
-        height: 545px; 
-    }
-    
-    #status-banner {
-        position: absolute; 
-        bottom: 0; 
-        left: 0; 
-        width: 100%; 
-        height: 55px;
-        background: rgba(15, 15, 15, 0.95); 
-        border-top: 2px solid #00ffcc;
-        color: #fff; 
-        display: flex; 
-        align-items: center; 
-        justify-content: space-around;
-        padding: 0 15px; 
-        box-sizing: border-box; 
-        z-index: 2000; 
-        font-size: 12px;
-    }
-    
-    .banner-item { display: flex; flex-direction: column; align-items: center; }
-    .banner-label { color: #888; font-size: 10px; text-transform: uppercase; }
-    .banner-val { color: #00ffcc; font-weight: bold; font-size: 13px; }
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mesoscale Radar Nowcasting System</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body, html { 
+            margin: 0; 
+            padding: 0; 
+            width: 100%; 
+            height: 600px; 
+            background: #0b0b0b; 
+            font-family: monospace; 
+            overflow: hidden; 
+        }
+        
+        #map { 
+            width: 100%; 
+            height: 545px; 
+        }
+        
+        #status-banner {
+            position: absolute; 
+            bottom: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 55px;
+            background: rgba(15, 15, 15, 0.95); 
+            border-top: 2px solid #00ffcc;
+            color: #fff; 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-around;
+            padding: 0 15px; 
+            box-sizing: border-box; 
+            z-index: 2000; 
+            font-size: 12px;
+        }
+        
+        .banner-item { display: flex; flex-direction: column; align-items: center; }
+        .banner-label { color: #888; font-size: 10px; text-transform: uppercase; }
+        .banner-val { color: #00ffcc; font-weight: bold; font-size: 13px; }
 
-    /* Animazione pulita basata solo sull'opacità nativa SVG, zero rimbalzi */
-    @keyframes svg-pulse-red {
-        0% { stroke-opacity: 0.4; fill-opacity: 0.05; }
-        50% { stroke-opacity: 1; fill-opacity: 0.2; }
-        100% { stroke-opacity: 0.4; fill-opacity: 0.05; }
-    }
-    @keyframes svg-pulse-green {
-        0% { stroke-opacity: 0.4; fill-opacity: 0.05; }
-        50% { stroke-opacity: 1; fill-opacity: 0.2; }
-        100% { stroke-opacity: 0.4; fill-opacity: 0.05; }
-    }
-    @keyframes pulse-black-dot {
-        0% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.4); opacity: 0.4; }
-        100% { transform: scale(1); opacity: 1; }
-    }
+        /* Animazione pulita basata solo sull'opacità, zero spostamenti geometrici */
+        @keyframes svg-pulse-red {
+            0% { stroke-opacity: 0.3; fill-opacity: 0.05; }
+            50% { stroke-opacity: 1; fill-opacity: 0.25; }
+            100% { stroke-opacity: 0.3; fill-opacity: 0.05; }
+        }
+        @keyframes svg-pulse-green {
+            0% { stroke-opacity: 0.3; fill-opacity: 0.05; }
+            50% { stroke-opacity: 1; fill-opacity: 0.25; }
+            100% { stroke-opacity: 0.3; fill-opacity: 0.05; }
+        }
+        @keyframes pulse-black-dot {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.5; }
+            100% { transform: scale(1); opacity: 1; }
+        }
 
-    .macro-circle-red {
-        stroke: #ff2222;
-        stroke-width: 2px;
-        stroke-dasharray: 6, 6;
-        animation: svg-pulse-red 2s infinite ease-in-out;
-    }
-    .macro-circle-green {
-        stroke: #00ff66;
-        stroke-width: 2px;
-        stroke-dasharray: 6, 6;
-        animation: svg-pulse-green 3s infinite ease-in-out;
-    }
-    .nuclei-dot {
-        background: #000; border: 2px solid #fff; border-radius: 50%;
-        width: 10px; height: 10px; animation: pulse-black-dot 1.5s infinite;
-    }
-    .leaflet-popup-content { font-size: 12px; line-height: 1.4; color: #111; }
-</style>
+        .macro-circle-red {
+            stroke: #ff2222;
+            stroke-width: 2px;
+            stroke-dasharray: 6, 6;
+            animation: svg-pulse-red 2s infinite ease-in-out;
+        }
+        .macro-circle-green {
+            stroke: #00ff66;
+            stroke-width: 2px;
+            stroke-dasharray: 6, 6;
+            animation: svg-pulse-green 3s infinite ease-in-out;
+        }
+        .nuclei-dot {
+            background: #000; border: 2px solid #fff; border-radius: 50%;
+            width: 10px; height: 10px; animation: pulse-black-dot 1.5s infinite;
+        }
+        .leaflet-popup-content { font-size: 12px; line-height: 1.4; color: #111; }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <div id="status-banner">
+        <div class="banner-item"><span class="banner-label">Macrostruttura</span><span class="banner-val" id="b-struct">In attesa...</span></div>
+        <div class="banner-item"><span class="banner-label">Velocità</span><span class="banner-val" id="b-speed">-- km/h</span></div>
+        <div class="banner-item"><span class="banner-label">Altezza Eco</span><span class="banner-val" id="b-height">-- km</span></div>
+        <div class="banner-item"><span class="banner-label">VIS</span><span class="banner-val" id="b-vis">-- km</span></div>
+        <div class="banner-item"><span class="banner-label">Stato Radar</span><span class="banner-val" style="color:#00ff00">ONLINE</span></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        var map = L.map('map').setView([42.0, 12.5], 6);
+
+        // Mappa base CartoDB Dark Matter (pulita e senza conflitti di zoom)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            maxZoom: 12,
+            minZoom: 4,
+            attribution: '&copy; OpenStreetMap &copy; CARTO'
+        }).addTo(map);
+
+        var operationalLayer = L.layerGroup().addTo(map);
+
+        // Correzione forzata rendering iframe
+        setTimeout(function() {
+            map.invalidateSize();
+        }, 300);
+
+        function loadWeatherData() {
+            let jsonUrl = 'centroids.json?v=' + new Date().getTime();
+            
+            fetch(jsonUrl)
+                .then(res => {
+                    if (!res.ok) throw new Error('HTTP error! status: ' + res.status);
+                    return res.json();
+                })
+                .then(data => {
+                    operationalLayer.clearLayers();
+
+                    // Overlay radar corretto da RainViewer
+                    if (data.radar_tile && data.radar_tile.path) {
+                        let radarUrl = data.radar_tile.host + data.radar_tile.path + '/256/{z}/{x}/{y}/2/1_1.png';
+                        L.tileLayer(radarUrl, { 
+                            tileSize: 256, 
+                            opacity: 0.8,
+                            maxZoom: 12,
+                            minZoom: 4
+                        }).addTo(operationalLayer);
+                    }
+
+                    let structures = data.macro_structures || [];
+                    if (structures.length > 0) {
+                        let primary = structures[0];
+                        document.getElementById('b-struct').innerText = primary.type;
+                        document.getElementById('b-speed').innerText = primary.speed_kmh + ' km/h';
+                        document.getElementById('b-height').innerText = primary.height_km + ' km';
+                        document.getElementById('b-vis').innerText = primary.vis;
+
+                        structures.forEach(item => {
+                            let center = [item.center[0], item.center[1]];
+                            let radiusMeters = item.radius_km * 1000;
+                            let isClosest = (item.distance_rank === 'closest');
+                            let circleClass = isClosest ? 'macro-circle-red' : 'macro-circle-green';
+                            let lineColor = isClosest ? '#ff2222' : '#00ff66';
+
+                            let macroCircle = L.circle(center, {
+                                radius: radiusMeters,
+                                className: circleClass,
+                                weight: 2,
+                                fillOpacity: 0.15
+                            }).bindPopup(`<b>Struttura:</b> ${item.type}<br><b>ID:</b> ${item.id}<br><b>Velocità:</b> ${item.speed_kmh} km/h<br><b>Quota:</b> ${item.height_km} km`);
+                            operationalLayer.addLayer(macroCircle);
+
+                            if (item.actual_path && item.actual_path.length > 0) {
+                                let actualLine = L.polyline(item.actual_path, {
+                                    color: '#0055ff',
+                                    weight: 4
+                                });
+                                operationalLayer.addLayer(actualLine);
+                            }
+
+                            if (item.forecast_path && item.forecast_path.length > 0) {
+                                let forecastLine = L.polyline(item.forecast_path, {
+                                    color: lineColor,
+                                    weight: 3,
+                                    dashArray: '8, 8'
+                                }).bindTooltip(`<b>${item.eta_cep}</b>`, {permanent: true, direction: 'top'});
+                                operationalLayer.addLayer(forecastLine);
+                            }
+
+                            if (item.nuclei && item.nuclei.length > 0) {
+                                item.nuclei.forEach(nuc => {
+                                    let dotIcon = L.divIcon({
+                                        className: 'nuclei-dot',
+                                        iconSize: [12, 12]
+                                    });
+                                    let nucMarker = L.marker([nuc.lat, nuc.lon], { icon: dotIcon })
+                                        .bindPopup(`<b>Nucleo Interno</b><br>Intensità: ${nuc.intensity}`);
+                                    operationalLayer.addLayer(nucMarker);
+                                });
+                            }
+                        });
+                    }
+                })
+                .catch(err => {
+                    console.error('Errore caricamento telemetria:', err);
+                    document.getElementById('b-struct').innerText = 'ERRORE DATI';
+                });
+        }
+
+        loadWeatherData();
+        setInterval(loadWeatherData, 60000);
+    </script>
+</body>
+</html>
