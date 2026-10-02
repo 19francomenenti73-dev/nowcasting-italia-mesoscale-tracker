@@ -20,6 +20,11 @@
             width: 100%; 
             height: 545px; 
         }
+
+        /* TRUCCO DEFINITIVO: Filtro CSS per trasformare le tile di OpenStreetMap in Dark Mode nativa senza API key */
+        .leaflet-tile-pane {
+            filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+        }
         
         #status-banner {
             position: absolute; 
@@ -43,7 +48,6 @@
         .banner-label { color: #888; font-size: 10px; text-transform: uppercase; }
         .banner-val { color: #00ffcc; font-weight: bold; font-size: 13px; }
 
-        /* Animazione pulita basata solo sull'opacità, zero spostamenti geometrici */
         @keyframes svg-pulse-red {
             0% { stroke-opacity: 0.3; fill-opacity: 0.05; }
             50% { stroke-opacity: 1; fill-opacity: 0.25; }
@@ -95,16 +99,15 @@
     <script>
         var map = L.map('map').setView([42.0, 12.5], 6);
 
-        // Mappa base CartoDB Dark Matter (pulita e senza conflitti di zoom)
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        // Tile standard libere senza alcuna richiesta di API key
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 12,
             minZoom: 4,
-            attribution: '&copy; OpenStreetMap &copy; CARTO'
+            attribution: '&copy; OpenStreetMap'
         }).addTo(map);
 
         var operationalLayer = L.layerGroup().addTo(map);
 
-        // Correzione forzata rendering iframe
         setTimeout(function() {
             map.invalidateSize();
         }, 300);
@@ -120,7 +123,6 @@
                 .then(data => {
                     operationalLayer.clearLayers();
 
-                    // Overlay radar corretto da RainViewer
                     if (data.radar_tile && data.radar_tile.path) {
                         let radarUrl = data.radar_tile.host + data.radar_tile.path + '/256/{z}/{x}/{y}/2/1_1.png';
                         L.tileLayer(radarUrl, { 
