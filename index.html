@@ -122,9 +122,8 @@
             return pathArray.map(pt => parseCoord(pt));
         }
 
-        // Calcolo geometrico reale della distanza (formula di Haversine in km)
         function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
-            var R = 6371; // Raggio della Terra in km
+            var R = 6371;
             var dLat = (lat2 - lat1) * (Math.PI / 180);
             var dLon = (lon2 - lon1) * (Math.PI / 180);
             var a = 
@@ -135,7 +134,7 @@
             return R * c;
         }
 
-        // Calcolo matematico rigoroso dell'ETA basato su distanza reale e velocità
+        // Calcolo rigoroso ed esclusivo via codice (nessun testo fisso)
         function computeRealETA(startCoord, endCoord, speedKmh) {
             if (!speedKmh || speedKmh <= 0) return 'ETA: N/D';
             let distKm = getDistanceFromLatLonInKm(startCoord[0], startCoord[1], endCoord[0], endCoord[1]);
@@ -219,17 +218,18 @@
                                 });
                                 operationalLayer.addLayer(forecastLine);
 
-                                // Calcolo fisico reale dell'ETA basato sul percorso previsto e velocità
                                 let endPoint = fPath[fPath.length - 1];
+                                
+                                // FORZATURA TOTALE: Calcolo matematico puro, zero stringhe lette dal JSON
                                 let computedEta = computeRealETA(centerCoord, endPoint, item.speed_kmh);
-                                let cepText = item.cep_radius_km ? ` | CEP: ±${item.cep_radius_km}km` : '';
-                                let badgeText = `${computedEta}${cepText}`;
+                                let cepVal = item.cep_radius_km || 1.0;
+                                let badgeText = `${computedEta} | CEP: ±${cepVal}km`;
 
                                 let etaIcon = L.divIcon({
                                     className: 'eta-marker',
                                     html: `<div>${badgeText}</div>`,
-                                    iconSize: [120, 24],
-                                    iconAnchor: [60, 12]
+                                    iconSize: [130, 24],
+                                    iconAnchor: [65, 12]
                                 });
                                 
                                 let etaMarker = L.marker(endPoint, { icon: etaIcon })
