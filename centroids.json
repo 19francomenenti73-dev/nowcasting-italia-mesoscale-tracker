@@ -1,120 +1,60 @@
-import json
-import numpy as np
-import scipy.ndimage
-
-def generate_centroids_json(dbz_matrix, radar_info, output_filename="centroids.json"):
-    """
-    Analizza la matrice radar dBZ, estrae i centroidi reali delle celle convettive,
-    converte i pixel in coordinate GPS e genera il JSON per il frontend.
-    """
-    
-    # 1. Definizione Bounding Box geografico del radar (es. copertura Italia / Mediterraneo centrale)
-    # Modifica questi valori in base al dominio esatto dei tuoi dati radar (es. Protezione Civile)
-    lat_min, lat_max = 35.5, 47.1
-    lon_min, lon_max = 6.6, 19.0
-    
-    img_height, img_width = dbz_matrix.shape
-    
-    # 2. Soglia di intensità per isolare i nuclei temporaleschi severi (es. dBZ >= 35 o 40)
-    threshold = 35.0
-    binary_mask = dbz_matrix >= threshold
-    
-    # Etichetta le macro-strutture distinte sulla matrice
-    labeled_array, num_features = scipy.ndimage.label(binary_mask)
-    
-    macro_structures = []
-    
-    if num_features > 0:
-        # Trova le componenti connesse e ordinale per area/intensità
-        objects = scipy.ndimage.find_objects(labeled_array)
-        
-        for i, slc in enumerate(objects):
-            if slc is None:
-                continue
-                
-            sub_array = dbz_matrix[slc]
-            # Consideriamo solo strutture con una certa estensione significativa
-            if sub_array.size < 10: 
-                continue
-                
-            # Calcolo del centro di massa in coordinate pixel sulla matrice intera
-            pixel_y, pixel_x = scipy.ndimage.center_of_mass(labeled_array == (i + 1))
-            
-            # Conversione rigorosa da pixel a Latitudine / Longitudine
-            # Nota: l'asse y dell'immagine parte dall'alto (0) verso il basso (height)
-            center_lat = lat_max - (pixel_y / img_height) * (lat_max - lat_min)
-            center_lon = lon_min + (pixel_x / img_width) * (lon_max - lon_min)
-            
-            # Stima della velocità e dei vettori (proiezione in avanti)
-            # Qui applichiamo un vettore di spostamento basato sul flusso medio stimato (es. verso Nord-Est / 45 km/h)
-            speed_kmh = 45.0
-            height_km = 8.5
-            
-            # Calcoliamo un punto futuro stimato a +60 minuti (spostamento approssimativo in gradi lat/lon)
-            # 1 grado di latitudine ~= 111 km. 45 km in 1 ore ~= 0.40 gradi
-            lat_offset = 0.35  # Esempio di spostamento verso nord
-            lon_offset = 0.42  # Esempio di spostamento verso est
-            
-            forecast_lat = center_lat + lat_offset
-            forecast_lon = center_lon + lon_offset
-            
-            actual_lat = center_lat - (lat_offset * 0.3) # Vettore attualità (reale recente)
-            actual_lon = center_lon - (lon_offset * 0.3)
-            
-            structure_data = {
-                "id": f"STORM_{i+1:02d}",
-                "type": "Sistema Convettivo a Mesoscala",
-                "center": [round(float(center_lat), 4), round(float(center_lon), 4)],
-                "radius_km": 18.0,
-                "speed_kmh": speed_kmh,
-                "height_km": height_km,
-                "intensity": "Forte / Temporale",
-                "actual_path": [
-                    [round(float(center_lat), 4), round(float(center_lon), 4)],
-                    [round(float(actual_lat), 4), round(float(actual_lon), 4)]
-                ],
-                "forecast_path": [
-                    [round(float(center_lat), 4), round(float(center_lon), 4)],
-                    [round(float(forecast_lat), 4), round(float(forecast_lon), 4)]
-                ],
-                "cep_radius_km": 1.5
-            }
-            macro_structures.append(structure_data)
-            
-    # Se non trova nuclei forti, inserisce una struttura di fallback basata sui dati attuali passati
-    if not macro_structures:
-        macro_structures.append({
-            "id": "STORM_01",
-            "type": "Monitoraggio Area",
-            "center": [43.5, 9.2], # Posizione corretta sul Mar Ligure/Tirreno settentrionale
-            "radius_km": 15.0,
-            "speed_kmh": 40.0,
-            "height_km": 7.0,
-            "intensity": "Moderato",
-            "actual_path": [[43.5, 9.2], [43.7, 9.4]],
-            "forecast_path": [[43.5, 9.2], [44.1, 9.8]],
-            "cep_radius_km": 1.2
-        })
-
-    output_data = {
-        "radar_tile": radar_info,
-        "macro_structures": macro_structures
+{
+  "radar_tile": {
+    "host": "https://tilecache.rainviewer.com",
+    "path": "/v2/radar/22bd400c4a70",
+    "time": "2026-10-02 09:50:00 UTC"
+  },
+  "macro_structures": [
+    {
+      "id": "MCS-TYRRHENIAN-01",
+      "type": "Sistema Convettivo a Mesoscala",
+      "distance_rank": "closest",
+      "center": [
+        40.2,
+        9.5
+      ],
+      "radius_km": 45.0,
+      "speed_kmh": 42.0,
+      "height_km": 11.5,
+      "vis": "Allerta Temporale Forte",
+      "actual_path": [
+        [
+          39.8,
+          8.9
+        ],
+        [
+          40.2,
+          9.5
+        ]
+      ],
+      "forecast_path": [
+        [
+          40.2,
+          9.5
+        ],
+        [
+          40.6,
+          10.1
+        ],
+        [
+          41.1,
+          10.8
+        ]
+      ],
+      "eta_cep": "ETA Roma: +48m | CEP: \u00b10.8 km",
+      "nuclei": [
+        {
+          "lat": 40.0,
+          "lon": 9.2,
+          "intensity": "54 dBZ Core"
+        },
+        {
+          "lat": 40.4,
+          "lon": 9.8,
+          "intensity": "58 dBZ Core"
+        }
+      ]
     }
-    
-    with open(output_filename, 'w', encoding='utf-8') as f:
-        json.dump(output_data, f, indent=4)
-        
-    print(f"[OK] File {output_filename} generato con coordinate corrette sul target radar.")
-
-# Esempio di chiamata di test (da integrare nel tuo script principale):
-if __name__ == "__main__":
-    # Simulazione matrice radar (es. 500x500 pixel) con un picco forte nel Mar Ligure
-    dummy_dbz = np.zeros((500, 500))
-    dummy_dbz[150:200, 200:250] = 45.0  # Nucleo convettivo intenso
-    
-    radar_meta = {
-        "host": "https://radar.protezionecivile.it",
-        "path": "/mosaic"
-    }
-    
-    generate_centroids_json(dummy_dbz, radar_meta)
+  ],
+  "timestamp": "2026-10-02T09:53:12.413062+00:00"
+}
