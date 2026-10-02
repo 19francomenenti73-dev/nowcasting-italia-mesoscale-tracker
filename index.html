@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nowcasting Italia - Storm Tracker a Mesoscala</title>
     
-    <!-- Configurazione PWA per Installazione su Smartphone -->
+    <!-- Configurazione PWA -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#121212">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -33,6 +33,54 @@
             bottom: 55px;
             width: 100%;
             background: #121212;
+        }
+
+        /* Banner Universale di Installazione in basso sopra la barra */
+        #install-banner {
+            display: none;
+            position: absolute;
+            bottom: 65px;
+            left: 10px;
+            right: 10px;
+            z-index: 4000;
+            background: rgba(18, 18, 18, 0.95);
+            border: 2px solid #00ffcc;
+            color: #fff;
+            padding: 12px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.8);
+            font-family: monospace;
+            text-align: center;
+        }
+
+        #install-banner p {
+            font-size: 11px;
+            margin-bottom: 8px;
+            color: #00ffcc;
+            line-height: 1.4;
+        }
+
+        #install-action-btn {
+            background: #00ffcc;
+            color: #121212;
+            border: none;
+            padding: 8px 16px;
+            font-weight: bold;
+            font-size: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: monospace;
+            width: 100%;
+        }
+
+        #close-banner {
+            background: transparent;
+            border: none;
+            color: #888;
+            font-size: 10px;
+            margin-top: 6px;
+            cursor: pointer;
+            text-decoration: underline;
         }
         
         #status-banner {
@@ -86,6 +134,14 @@
 </head>
 <body>
 
+    <!-- Banner Universale Installazione App -->
+    <div id="install-banner">
+        <p id="install-text">Installa Nowcasting Italia sul tuo dispositivo per un accesso rapido e modalità schermo intero.</p>
+        <button id="install-action-btn">📥 Installa Subito</button>
+        <br>
+        <button id="close-banner" onclick="document.getElementById('install-banner').style.display='none'">Chiudi</button>
+    </div>
+
     <div id="map"></div>
 
     <div id="status-banner">
@@ -99,6 +155,56 @@
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+        // Registrazione Service Worker per PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(() => console.log("Service Worker registrato"))
+                .catch(err => console.log("Errore SW:", err));
+        }
+
+        let deferredPrompt;
+        const installBanner = document.getElementById('install-banner');
+        const installBtn = document.getElementById('install-action-btn');
+        const installText = document.getElementById('install-text');
+
+        // Controllo se il dispositivo è iOS (iPhone/iPad)
+        const isIos = () => {
+            const userAgent = window.navigator.userAgent.toLowerCase();
+            return /iphone|ipad|ipod/.test(userAgent);
+        };
+
+        // Controllo se l'app è già in modalità standalone (già installata)
+        const isInStandaloneMode = () => ('standalone' in window.navigator) && (window.navigator.standalone);
+
+        if (!isInStandaloneMode()) {
+            if (isIos()) {
+                // Gestione specifica per iOS / Safari
+                installText.innerHTML = "Per installare su iPhone/iPad: tocca il tasto <b>Condividi (⎋)</b> nel browser e seleziona <b>'Aggiungi alla schermata Home'</b>.";
+                installBtn.style.display = 'none'; // Su iOS non si può avviare via codice
+                installBanner.style.display = 'block';
+            } else {
+                // Gestione per Android / Desktop (Chrome, Edge, ecc.)
+                window.addEventListener('beforeinstallprompt', (e) => {
+                    e.preventDefault();
+                    deferredPrompt = e;
+                    installBanner.style.display = 'block';
+                });
+            }
+        }
+
+        installBtn.addEventListener('click', (e) => {
+            installBanner.style.display = 'none';
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('Utente ha installato l app');
+                    }
+                    deferredPrompt = null;
+                });
+            }
+        });
+
         var map = L.map('map', {
             zoomControl: true,
             attributionControl: false
@@ -120,7 +226,6 @@
                        .replace(/allertamento/gi, 'Stato');
         }
 
-        // Funzione di parsing coordinate blindata (supporta array e oggetti lat/lon)
         function parseCoord(coord) {
             if (!coord) return [42.0, 12.5];
             if (!Array.isArray(coord)) {
@@ -213,7 +318,6 @@
                             }).bindPopup(`<b>Struttura:</b> ${sanitizeText(item.type)}<br><b>ID:</b> ${item.id || ('M-' + index)}<br><b>Velocità:</b> ${item.speed_kmh || '--'} km/h<br><b>Quota Eco:</b> ${item.height_km || '--'} km`);
                             operationalLayer.addLayer(macroCircle);
 
-                            // Rendering linea blu percorso effettivo corretto
                             if (item.actual_path && item.actual_path.length > 0) {
                                 let actualLine = L.polyline(parsePath(item.actual_path), {
                                     color: '#0055ff',
