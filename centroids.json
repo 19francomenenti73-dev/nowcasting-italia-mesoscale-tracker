@@ -1,7 +1,7 @@
 {
   "radar_tile": {
     "host": "https://tilecache.rainviewer.com",
-    "path": "/v2/radar/0f7c5762e39b"
+    "path": "/v2/radar/9c47ffe2aeaa"
   },
   "macro_structures": [
     {
@@ -55,5 +55,5 @@
       ]
     }
   ],
-  "timestamp": "2026-10-02T07:50:24.968721"
+  "timestamp": "2026-10-02T07:55:12.425078"
 }
