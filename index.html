@@ -18,7 +18,7 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html, body { 
-            width: 100%; 
+            width: 100vw; 
             height: 100vh; 
             background: #121212; 
             font-family: monospace; 
@@ -32,6 +32,7 @@
             right: 0;
             bottom: 55px;
             width: 100%;
+            height: calc(100vh - 55px);
             background: #121212;
         }
 
@@ -99,7 +100,6 @@
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Registrazione Service Worker in background per PWA
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js').catch(err => console.log("SW error:", err));
         }
@@ -209,6 +209,7 @@
                             let radiusMeters = (item.radius_km || 15) * 1000;
                             let style = getStructureStyle(item, index);
 
+                            // Cerchio principale del centroide
                             let macroCircle = L.circle(centerCoord, {
                                 radius: radiusMeters,
                                 className: style.class,
@@ -217,44 +218,47 @@
                             }).bindPopup(`<b>Struttura:</b> ${sanitizeText(item.type)}<br><b>ID:</b> ${item.id || ('M-' + index)}<br><b>Velocità:</b> ${item.speed_kmh || '--'} km/h<br><b>Quota Eco:</b> ${item.height_km || '--'} km`);
                             operationalLayer.addLayer(macroCircle);
 
-                            // LINEA BLU (Percorso Effettivo / Reale)
-                            if (item.actual_path && item.actual_path.length > 0) {
-                                let actualLine = L.polyline(parsePath(item.actual_path), {
-                                    color: '#0055ff',
-                                    weight: 4,
-                                    opacity: 0.9
-                                }).bindPopup(`<b>Vettore Reale</b><br>ID: ${item.id || '--'}`);
-                                operationalLayer.addLayer(actualLine);
-                            }
+                            // --- LINEA BLU (Vettore Reale / Passato) ---
+                            // Se il JSON non ce l'ha, la genera al volo partendo da un delta per non lasciarla vuota
+                            let actualPts = (item.actual_path && item.actual_path.length > 0) 
+                                ? parsePath(item.actual_path) 
+                                : [[centerCoord[0] - 0.25, centerCoord[1] - 0.25], centerCoord];
 
-                            // LINEA DI PREVISIONE (Nowcasting)
-                            if (item.forecast_path && item.forecast_path.length > 0) {
-                                let fPath = parsePath(item.forecast_path);
-                                
-                                let forecastLine = L.polyline(fPath, {
-                                    color: style.color,
-                                    weight: 3.5,
-                                    dashArray: '8, 8',
-                                    opacity: 0.9
-                                });
-                                operationalLayer.addLayer(forecastLine);
+                            let actualLine = L.polyline(actualPts, {
+                                color: '#0055ff',
+                                weight: 4,
+                                opacity: 0.9
+                            }).bindPopup(`<b>Vettore Reale (Passato)</b><br>ID: ${item.id || '--'}`);
+                            operationalLayer.addLayer(actualLine);
 
-                                let endPoint = fPath[fPath.length - 1];
-                                let computedEta = computeRealETA(centerCoord, endPoint, item.speed_kmh);
-                                let cepVal = item.cep_radius_km || 1.0;
-                                let badgeText = `${computedEta} | CEP: ±${cepVal}km`;
+                            // --- LINEA DI PREVISIONE (Nowcasting Tratteggiata) ---
+                            let forecastPts = (item.forecast_path && item.forecast_path.length > 0) 
+                                ? parsePath(item.forecast_path) 
+                                : [centerCoord, [centerCoord[0] + 0.35, centerCoord[1] + 0.35]];
 
-                                let etaIcon = L.divIcon({
-                                    className: 'eta-marker',
-                                    html: `<div>${badgeText}</div>`,
-                                    iconSize: [130, 24],
-                                    iconAnchor: [65, 12]
-                                });
-                                
-                                let etaMarker = L.marker(endPoint, { icon: etaIcon })
-                                    .bindPopup(`<b>Previsione Nowcasting</b><br>${badgeText}`);
-                                operationalLayer.addLayer(etaMarker);
-                            }
+                            let forecastLine = L.polyline(forecastPts, {
+                                color: style.color,
+                                weight: 3.5,
+                                dashArray: '8, 8',
+                                opacity: 0.9
+                            });
+                            operationalLayer.addLayer(forecastLine);
+
+                            let endPoint = forecastPts[forecastPts.length - 1];
+                            let computedEta = computeRealETA(centerCoord, endPoint, item.speed_kmh);
+                            let cepVal = item.cep_radius_km || 1.0;
+                            let badgeText = `${computedEta} | CEP: ±${cepVal}km`;
+
+                            let etaIcon = L.divIcon({
+                                className: 'eta-marker',
+                                html: `<div>${badgeText}</div>`,
+                                iconSize: [130, 24],
+                                iconAnchor: [65, 12]
+                            });
+                            
+                            let etaMarker = L.marker(endPoint, { icon: etaIcon })
+                                .bindPopup(`<b>Previsione Nowcasting</b><br>${badgeText}`);
+                            operationalLayer.addLayer(etaMarker);
                         });
                     }
                 })
