@@ -3,6 +3,57 @@
     "host": "https://tilecache.rainviewer.com",
     "path": "/v2/radar/0f7c5762e39b"
   },
-  "macro_structures": [],
-  "timestamp": "2026-10-02T07:41:17.335532"
+  "macro_structures": [
+    {
+      "id": "TITAN-CELL-TYRRHENIAN-01",
+      "type": "Sistema Convettivo a Mesoscala (MCS)",
+      "distance_rank": "closest",
+      "center": [
+        40.2,
+        9.5
+      ],
+      "radius_km": 50.0,
+      "speed_kmh": 45.0,
+      "height_km": 12.0,
+      "vis": "Allerta Nubifragio / Core Grandigeno",
+      "actual_path": [
+        [
+          40.0,
+          9.1
+        ],
+        [
+          40.2,
+          9.5
+        ]
+      ],
+      "forecast_path": [
+        [
+          40.2,
+          9.5
+        ],
+        [
+          40.5,
+          10.0
+        ],
+        [
+          40.9,
+          10.7
+        ]
+      ],
+      "eta_cep": "ETA Roma: +52m | CEP: \u00b10.9 km",
+      "nuclei": [
+        {
+          "lat": 40.1,
+          "lon": 9.3,
+          "intensity": "56 dBZ Core"
+        },
+        {
+          "lat": 40.3,
+          "lon": 9.7,
+          "intensity": "61 dBZ Core"
+        }
+      ]
+    }
+  ],
+  "timestamp": "2026-10-02T07:50:24.968721"
 }
