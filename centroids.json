@@ -1,15 +1,15 @@
 {
     "radar_tile": {
         "host": "https://tilecache.rainviewer.com",
-        "path": "/v2/radar/6469006e3300"
+        "path": "/v2/radar/7158449f3f89"
     },
     "macro_structures": [
         {
             "id": "STORM_01",
             "type": "Sistema Convettivo a Mesoscala",
             "center": [
-                42.1105,
-                8.9758
+                42.0967,
+                8.9913
             ],
             "radius_km": 25.0,
             "speed_kmh": 42.0,
@@ -17,22 +17,22 @@
             "intensity": "Fase Temporale Forte",
             "actual_path": [
                 [
-                    42.1105,
-                    8.9758
+                    42.0967,
+                    8.9913
                 ],
                 [
-                    42.3805,
-                    9.3158
+                    42.3667,
+                    9.3313
                 ]
             ],
             "forecast_path": [
                 [
-                    42.1105,
-                    8.9758
+                    42.0967,
+                    8.9913
                 ],
                 [
-                    42.9105,
-                    9.9758
+                    42.8967,
+                    9.9913
                 ]
             ],
             "cep_radius_km": 1.0
