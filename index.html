@@ -92,30 +92,48 @@
         <div class="banner-item"><span class="banner-label">Struttura</span><span class="banner-val" id="b-struct">Acquisizione...</span></div>
         <div class="banner-item"><span class="banner-label">Velocità</span><span class="banner-val" id="b-speed">-- km/h</span></div>
         <div class="banner-item"><span class="banner-label">Quota Eco</span><span class="banner-val" id="b-height">-- km</span></div>
-        <div class="banner-item"><span class="banner-label">VIS</span><span class="banner-val" id="b-vis">-- km</span></div>
+        <div class="banner-item"><span class="banner-label">Intensità</span><span class="banner-val" id="b-vis">--</span></div>
         <div class="banner-item"><span class="banner-label">Radar</span><span class="banner-val" style="color:#00ff00">ONLINE</span></div>
     </div>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Inizializzazione mappa centrata sull'Italia
         var map = L.map('map', {
             zoomControl: true,
             attributionControl: false
         }).setView([42.0, 12.5], 6);
 
-        // Tile di sfondo Esri Dark Gray (stabili e senza chiavi)
+        // Tile di sfondo Esri Dark Gray
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
             maxZoom: 12,
             minZoom: 4
         }).addTo(map);
 
-        // Layer dinamico per radar e vettori
         var operationalLayer = L.layerGroup().addTo(map);
 
-        // Forza il ridimensionamento corretto dell'iframe
         setTimeout(() => map.invalidateSize(), 250);
+
+        // Funzione per eliminare radicalmente qualsiasi riferimento alla parola "allerta"
+        function sanitizeText(text) {
+            if (!text) return 'Monitoraggio';
+            return text.toString()
+                       .replace(/allerta/gi, 'Fase')
+                       .replace(/allertamento/gi, 'Stato');
+        }
+
+        // Parser intelligente delle coordinate per evitare disallineamenti o sparizioni
+        function parseCoord(coord) {
+            if (!coord || !Array.isArray(coord) || coord.length < 2) return [42.0, 12.5];
+            let c0 = coord[0], c1 = coord[1];
+            // Se c0 è compreso tra 30 e 50, è una latitudine valida [lat, lon]. Altrimenti inverte [lon, lat].
+            return (c0 >= 30 && c0 <= 50) ? [c0, c1] : [c1, c0];
+        }
+
+        function parsePath(pathArray) {
+            if (!Array.isArray(pathArray)) return [];
+            return pathArray.map(pt => parseCoord(pt));
+        }
 
         function loadWeatherData() {
             let jsonUrl = 'centroids.json?v=' + new Date().getTime();
@@ -139,21 +157,18 @@
                         }).addTo(operationalLayer);
                     }
 
-                    // 2. Elaborazione Macrostrutture e Centroidi (CEP)
+                    // 2. Elaborazione Macrostrutture, Centroidi e Vettori
                     let structures = data.macro_structures || [];
                     if (structures.length > 0) {
                         let primary = structures[0];
-                        document.getElementById('b-struct').innerText = primary.type;
-                        document.getElementById('b-speed').innerText = primary.speed_kmh + ' km/h';
-                        document.getElementById('b-height').innerText = primary.height_km + ' km';
-                        document.getElementById('b-vis').innerText = primary.vis;
+                        document.getElementById('b-struct').innerText = sanitizeText(primary.type);
+                        document.getElementById('b-speed').innerText = (primary.speed_kmh || '--') + ' km/h';
+                        document.getElementById('b-height').innerText = (primary.height_km || '--') + ' km';
+                        document.getElementById('b-vis').innerText = sanitizeText(primary.vis || primary.intensity || 'Forte');
 
                         structures.forEach(item => {
-                            // Gestione sicura delle coordinate: 
-                            // Se il backend fornisce [lon, lat], li invertiamo in [lat, lon] per Leaflet.
-                            // Se vedi ancora il cerchio disallineato, rimuovi [1] e [0] lasciando item.center diretto.
-                            let centerCoord = [item.center[1], item.center[0]];
-                            let radiusMeters = item.radius_km * 1000;
+                            let centerCoord = parseCoord(item.center);
+                            let radiusMeters = (item.radius_km || 15) * 1000;
                             let isClosest = (item.distance_rank === 'closest');
                             let circleClass = isClosest ? 'macro-circle-red' : 'macro-circle-green';
                             let lineColor = isClosest ? '#ff3333' : '#00ff66';
@@ -164,13 +179,12 @@
                                 className: circleClass,
                                 weight: 2,
                                 fillOpacity: 0.15
-                            }).bindPopup(`<b>Struttura:</b> ${item.type}<br><b>ID:</b> ${item.id}<br><b>Velocità:</b> ${item.speed_kmh} km/h<br><b>Quota:</b> ${item.height_km} km`);
+                            }).bindPopup(`<b>Struttura:</b> ${sanitizeText(item.type)}<br><b>ID:</b> ${item.id || '--'}<br><b>Velocità:</b> ${item.speed_kmh || '--'} km/h<br><b>Quota:</b> ${item.height_km || '--'} km`);
                             operationalLayer.addLayer(macroCircle);
 
                             // Vettore effettivo
                             if (item.actual_path && item.actual_path.length > 0) {
-                                let correctedActualPath = item.actual_path.map(pt => [pt[1], pt[0]]);
-                                let actualLine = L.polyline(correctedActualPath, {
+                                let actualLine = L.polyline(parsePath(item.actual_path), {
                                     color: '#0055ff',
                                     weight: 4
                                 });
@@ -179,23 +193,23 @@
 
                             // Vettore di previsione e box CEP
                             if (item.forecast_path && item.forecast_path.length > 0) {
-                                let correctedForecastPath = item.forecast_path.map(pt => [pt[1], pt[0]]);
-                                let forecastLine = L.polyline(correctedForecastPath, {
+                                let forecastLine = L.polyline(parsePath(item.forecast_path), {
                                     color: lineColor,
                                     weight: 3,
                                     dashArray: '6, 6'
-                                }).bindTooltip(`<b>${item.eta_cep}</b>`, {permanent: true, direction: 'top'});
+                                }).bindTooltip(`<b>${sanitizeText(item.eta_cep || 'CEP')}</b>`, {permanent: true, direction: 'top'});
                                 operationalLayer.addLayer(forecastLine);
                             }
 
                             // Nuclei interni ad alta riflettività
                             if (item.nuclei && item.nuclei.length > 0) {
                                 item.nuclei.forEach(nuc => {
+                                    let nucCoord = parseCoord([nuc.lat || nuc[1], nuc.lon || nuc[0]]);
                                     let dotIcon = L.divIcon({
                                         className: 'nuclei-dot',
                                         iconSize: [10, 10]
                                     });
-                                    let nucMarker = L.marker([nuc.lon ? nuc.lat : nuc[1], nuc.lon ? nuc.lon : nuc[0]], { icon: dotIcon })
+                                    let nucMarker = L.marker(nucCoord, { icon: dotIcon })
                                         .bindPopup(`<b>Nucleo Convettivo</b><br>Intensità: ${nuc.intensity || 'Alta'}`);
                                     operationalLayer.addLayer(nucMarker);
                                 });
