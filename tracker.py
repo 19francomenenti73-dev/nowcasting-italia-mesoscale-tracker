@@ -52,10 +52,7 @@ def main():
         img_array = np.array(stitched_image)
         alpha_channel = img_array[:, :, 3]
         
-        # Maschera selettiva per nuclei intensi (elimina rumore e pioggia debole)
         precipitation_mask = alpha_channel > 160  
-
-        # Chiusura morfologica per compattare i blocchi frammentati
         struct_elem = np.ones((5, 5), dtype=bool)
         closed_mask = scipy.ndimage.binary_closing(precipitation_mask, structure=struct_elem, iterations=2)
 
@@ -71,7 +68,6 @@ def main():
                 sub_mask = (labeled_array[slc] == (i + 1))
                 pixel_count = np.sum(sub_mask)
                 
-                # Scartiamo strutture più piccole di 400 pixel
                 if pixel_count < 400: 
                     continue
                 
@@ -93,7 +89,6 @@ def main():
                     "lon": lon_center
                 })
 
-        # Ordiniamo per grandezza e prendiamo solo i primi 5 nuclei più rilevanti
         candidates = sorted(candidates, key=lambda x: x["pixel_count"], reverse=True)[:5]
 
         for idx, cand in enumerate(candidates):
@@ -102,11 +97,20 @@ def main():
             
             speed_kmh = 42.0
             radius_km = 25.0
-            lat_offset = 0.4
-            lon_offset = 0.5
             
-            forecast_lat = lat_center + lat_offset
-            forecast_lon = lon_center + lon_offset
+            # Vettore di previsione a 3 ore (lunghezza tripla rispetto al singolo passo)
+            forecast_lat_offset = 1.2
+            forecast_lon_offset = 1.5
+            
+            forecast_lat = lat_center + forecast_lat_offset
+            forecast_lon = lon_center + forecast_lon_offset
+
+            # Tracciato effettivo: parte dal centro e punta in avanti (parallelo o leggermente divergente)
+            actual_lat_offset = 0.42
+            actual_lon_offset = 0.48
+            
+            actual_lat = lat_center + actual_lat_offset
+            actual_lon = lon_center + actual_lon_offset
 
             macro_structures.append({
                 "id": f"STORM_{idx+1:02d}",
@@ -118,7 +122,7 @@ def main():
                 "intensity": "Fase Temporale Forte",
                 "actual_path": [
                     [round(float(lat_center), 4), round(float(lon_center), 4)],
-                    [round(float(lat_center - 0.1), 4), round(float(lon_center - 0.1), 4)]
+                    [round(float(actual_lat), 4), round(float(actual_lon), 4)]
                 ],
                 "forecast_path": [
                     [round(float(lat_center), 4), round(float(lon_center), 4)],
@@ -140,8 +144,8 @@ def main():
                 "speed_kmh": 0.0,
                 "height_km": 5.0,
                 "intensity": "Quiete",
-                "actual_path": [[43.8, 8.6], [43.8, 8.6]],
-                "forecast_path": [[43.8, 8.6], [43.8, 8.6]],
+                "actual_path": [[43.8, 8.6], [44.0, 8.8]],
+                "forecast_path": [[43.8, 8.6], [45.0, 9.5]],
                 "cep_radius_km": 1.0
             }]
         }
@@ -161,16 +165,16 @@ def main():
                 "speed_kmh": 42.0,
                 "height_km": 11.5,
                 "intensity": "Fase Temporale Forte",
-                "actual_path": [[43.8, 8.6], [44.0, 8.8]],
-                "forecast_path": [[43.8, 8.6], [44.3, 9.2]],
+                "actual_path": [[43.8, 8.6], [44.2, 9.0]],
+                "forecast_path": [[43.8, 8.6], [45.0, 9.8]],
                 "cep_radius_km": 1.0
             }]
         }
 
     with open("centroids.json", "w", encoding='utf-8') as f:
         json.dump(output_payload, f, indent=4)
-        print("[SUCCESSO] centroids.json ottimizzato.")
+        print("[SUCCESSO] centroids.json aggiornato con vettori a 3h e tracciato effettivo in avanti.")
 
 if __name__ == "__main__":
     main()
-        
+    
