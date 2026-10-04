@@ -83,17 +83,19 @@
                     cellsLayer.clearLayers();
                     vectorsLayer.clearLayers();
 
-                    let count = 0;
+                    // Lettura corretta dell'array macro_structures dal JSON
+                    let structures = data.macro_structures || [];
+                    let count = structures.length;
 
-                    for (let trackId in data) {
-                        let track = data[trackId];
-                        if (!track.history || track.history.length === 0) continue;
+                    structures.forEach(track => {
+                        let trackId = track.id || "Struttura";
+                        let center = track.center; // [lat, lon]
+                        let speed = track.speed_kmh || 0;
+                        let intensity = track.intensity || "N/D";
 
-                        let current = track.history[track.history.length - 1];
-                        count++;
-
-                        if (current.polygon && current.polygon.length > 0) {
-                            let latLngs = current.polygon.map(p => [p[0], p[1]]);
+                        // Disegno del percorso / poligono effettivo
+                        if (track.actual_path && track.actual_path.length > 0) {
+                            let latLngs = track.actual_path.map(p => [p[0], p[1]]);
                             L.polygon(latLngs, {
                                 color: '#ff4d4d',
                                 fillColor: '#ff1a1a',
@@ -102,8 +104,9 @@
                             }).addTo(cellsLayer);
                         }
 
-                        if (current.lat && current.lon) {
-                            let marker = L.circleMarker([current.lat, current.lon], {
+                        // Marcatore del centroide
+                        if (center && center.length === 2) {
+                            let marker = L.circleMarker([center[0], center[1]], {
                                 radius: 6,
                                 color: '#ffffff',
                                 fillColor: '#ff3300',
@@ -113,23 +116,21 @@
 
                             marker.bindPopup(`
                                 <b>ID Cella:</b> ${trackId}<br>
-                                <b>Velocità:</b> ${current.speed_kmh || 0} km/h<br>
-                                <b>Direzione:</b> ${current.direction || 0}°<br>
-                                <b>Distanza:</b> ${current.distance_km || 0} km
+                                <b>Intensità:</b> ${intensity}<br>
+                                <b>Velocità:</b> ${speed} km/h
                             `);
                         }
 
-                        if (current.lat && current.lon && current.prediction) {
-                            let predLat = current.prediction.lat;
-                            let predLon = current.prediction.lon;
-                            
-                            L.polyline([[current.lat, current.lon], [predLat, predLon]], {
+                        // Vettore di proiezione/previsione futura
+                        if (track.forecast_path && track.forecast_path.length > 0 && center) {
+                            let linePoints = [center, ...track.forecast_path];
+                            L.polyline(linePoints, {
                                 color: '#0066cc',
                                 weight: 2.5,
                                 dashArray: '4, 4'
                             }).addTo(vectorsLayer);
                         }
-                    }
+                    });
 
                     document.getElementById('status-text').innerText = `Strutture attive: ${count}`;
                     document.getElementById('last-update').innerText = 'Aggiornato: ' + new Date().toLocaleTimeString();
