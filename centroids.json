@@ -1,5 +1,9 @@
 {
-    "generated_at": "2026-10-04T20:51:55.592551Z",
+    "generated_at": "2026-10-04T20:56:22.120427Z",
+    "radar_tile": {
+        "host": "https://tilecache.rainviewer.com",
+        "path": "/v2/radar/e8a6e4be457c"
+    },
     "macro_structures": [
         {
             "id": "TC-Liguria-01",
@@ -8,7 +12,7 @@
                 8.9
             ],
             "speed_kmh": 45,
-            "intensity": "Moderata",
+            "intensity": "Moderata-Alta",
             "actual_path": [
                 [
                     44.1,
