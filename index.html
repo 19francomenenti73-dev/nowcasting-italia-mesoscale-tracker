@@ -1,228 +1,111 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
+    <title>Nowcasting Italia - Mesoscale Convective Tracker</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nowcasting Italia - Storm Tracker a Mesoscala</title>
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- MapLibre GL JS CSS -->
+    <link href="[https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css](https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css)" rel="stylesheet" />
+    
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body { 
-            width: 100%; 
-            height: 100vh; 
-            background: #121212; 
-            font-family: monospace; 
-            overflow: hidden; 
-        }
-        
-        #map { 
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 55px;
+        body, html {
+            margin: 0;
+            padding: 0;
             width: 100%;
-            background: #121212;
+            height: 100%;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
         }
-        
-        #status-banner {
-            position: absolute; 
-            bottom: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 55px;
-            background: rgba(18, 18, 18, 0.95); 
-            border-top: 2px solid #00ffcc;
-            color: #fff; 
-            display: flex; 
-            align-items: center; 
-            justify-content: space-around;
-            padding: 0 10px; 
-            z-index: 3000; 
-            font-size: 11px;
+        #map {
+            width: 100%;
+            height: 100%;
         }
-        
-        .banner-item { display: flex; flex-direction: column; align-items: center; text-align: center; }
-        .banner-label { color: #888; font-size: 9px; text-transform: uppercase; margin-bottom: 2px; }
-        .banner-val { color: #00ffcc; font-weight: bold; font-size: 12px; }
-
-        @keyframes pulse-ring {
-            0% { stroke-opacity: 0.4; fill-opacity: 0.08; transform: scale(1); }
-            50% { stroke-opacity: 1; fill-opacity: 0.3; transform: scale(1.02); }
-            100% { stroke-opacity: 0.4; fill-opacity: 0.08; transform: scale(1); }
+        .maplibregl-popup-content {
+            background: #1a1a1a !important;
+            color: #ffffff !important;
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
         }
-
-        .circle-red { stroke: #ff3333; stroke-width: 2.5px; stroke-dasharray: 6, 6; animation: pulse-ring 2s infinite ease-in-out; }
-        .cep-circle { stroke: #ff9900; stroke-width: 1.5px; stroke-dasharray: 3, 3; fill: #ff9900; fill-opacity: 0.15; }
-
-        .eta-marker {
-            background: rgba(18, 18, 18, 0.9);
-            border: 2px solid #ff3333;
-            color: #fff;
-            font-family: monospace;
-            font-size: 10px;
-            font-weight: bold;
-            padding: 3px 8px;
-            border-radius: 4px;
-            white-space: nowrap;
-            text-align: center;
-            box-shadow: 0 0 8px rgba(255,51,51,0.5);
+        .maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: #1a1a1a !important; }
+        .maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: #1a1a1a !important; }
+        .maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: #1a1a1a !important; }
+        .maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: #1a1a1a !important; }
+        .maplibregl-popup-close-button {
+            color: #aaa;
         }
-        
-        .leaflet-popup-content { font-size: 12px; color: #111; font-family: sans-serif; }
     </style>
 </head>
 <body>
 
     <div id="map"></div>
 
-    <div id="status-banner">
-        <div class="banner-item"><span class="banner-label">Struttura Primaria</span><span class="banner-val" id="b-struct">Analisi...</span></div>
-        <div class="banner-item"><span class="banner-label">Velocità</span><span class="banner-val" id="b-speed">-- km/h</span></div>
-        <div class="banner-item"><span class="banner-label">Quota Eco</span><span class="banner-val" id="b-height">-- km</span></div>
-        <div class="banner-item"><span class="banner-label">Stato</span><span class="banner-val" id="b-vis">Monitoraggio</span></div>
-        <div class="banner-item"><span class="banner-label">Radar</span><span class="banner-val" style="color:#00ff00">ONLINE</span></div>
-    </div>
-
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- MapLibre GL JS Library -->
+    <script src="[https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js](https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js)"></script>
+    
     <script>
-        var map = L.map('map', {
-            zoomControl: true,
-            attributionControl: false
-        }).setView([43.0, 12.0], 6);
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: '[https://basemaps.cartocdn.com/gl/positron-gl-style/style.json](https://basemaps.cartocdn.com/gl/positron-gl-style/style.json)',
+            center: [12.5674, 41.9028],
+            zoom: 8,
+            pitch: 0,
+            bearing: 0
+        });
 
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-            maxZoom: 12,
-            minZoom: 4
-        }).addTo(map);
+        map.on('load', () => {
+            map.addSource('cells', {
+                type: 'geojson',
+                data: 'cells.geojson'
+            });
 
-        var operationalLayer = L.layerGroup().addTo(map);
+            map.addLayer({
+                id: 'storm-cells-vapor',
+                type: 'circle',
+                source: 'cells',
+                paint: {
+                    'circle-radius': [
+                        'interpolate', ['linear'], ['zoom'],
+                        8, ['/', ['coalesce', ['get', 'VIL'], 50], 3],
+                        12, ['/', ['coalesce', ['get', 'VIL'], 50], 1.5]
+                    ],
+                    'circle-color': ['coalesce', ['get', 'color'], '#ff3b30'],
+                    'circle-blur': 0.7,
+                    'circle-opacity': 0.85
+                }
+            });
 
-        setTimeout(() => map.invalidateSize(), 250);
+            map.on('click', 'storm-cells-vapor', (e) => {
+                const props = e.features[0].properties;
+                const coordinates = e.features[0].geometry.coordinates.slice();
 
-        function sanitizeText(text) {
-            if (!text) return 'Monitoraggio';
-            return text.toString()
-                       .replace(/allerta/gi, 'Fase')
-                       .replace(/allertamento/gi, 'Stato');
-        }
+                const content = `
+                    <strong>ID Cella:</strong> ${props.id || 'N/A'} | 
+                    <strong>Stadio:</strong> ${props.stadio || 'N/A'} | 
+                    <strong>Echo Top (ET):</strong> ${props.et || 'N/A'} km | 
+                    <strong>VIL:</strong> ${props.vil || 'N/A'} kg/m² | 
+                    <strong>OPE (Rain Rate):</strong> ${props.ope || 'N/A'} mm/h | 
+                    <strong>Flash Rate:</strong> ${props.flash_rate || 'N/A'} | 
+                    <strong>ETA Roma:</strong> ${props.eta_roma || 'N/A'} min | 
+                    <strong>CEP:</strong> ${props.cep || 'N/A'} km
+                `;
 
-        function parseCoord(coord) {
-            if (!coord || !Array.isArray(coord) || coord.length < 2) return [43.0, 12.0];
-            let c0 = coord[0], c1 = coord[1];
-            return (c0 >= 30 && c0 <= 50) ? [c0, c1] : [c1, c0];
-        }
+                new maplibregl.Popup()
+                    .setLngLat(coordinates)
+                    .setHTML(content)
+                    .addTo(map);
+            });
 
-        function parsePath(pathArray) {
-            if (!Array.isArray(pathArray)) return [];
-            return pathArray.map(pt => parseCoord(pt));
-        }
-
-        function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
-            var R = 6371;
-            var dLat = (lat2 - lat1) * (Math.PI / 180);
-            var dLon = (lon2 - lon1) * (Math.PI / 180);
-            var a = 
-                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-                Math.sin(dLon / 2) * Math.sin(dLon / 2);
-            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c;
-        }
-
-        function loadWeatherData() {
-            let jsonUrl = 'centroids.json?v=' + new Date().getTime();
-            
-            fetch(jsonUrl)
-                .then(res => {
-                    if (!res.ok) throw new Error('Errore HTTP: ' + res.status);
-                    return res.json();
-                })
-                .then(data => {
-                    operationalLayer.clearLayers();
-
-                    if (data.radar_tile && data.radar_tile.path) {
-                        let radarUrl = data.radar_tile.host + data.radar_tile.path + '/256/{z}/{x}/{y}/2/1_1.png';
-                        L.tileLayer(radarUrl, { 
-                            tileSize: 256, 
-                            opacity: 0.8,
-                            maxZoom: 12,
-                            minZoom: 4
-                        }).addTo(operationalLayer);
-                    }
-
-                    let structures = data.macro_structures || [];
-                    if (structures.length > 0) {
-                        let primary = structures[0];
-                        document.getElementById('b-struct').innerText = sanitizeText(primary.type);
-                        document.getElementById('b-speed').innerText = (primary.speed_kmh || '--') + ' km/h';
-                        document.getElementById('b-height').innerText = (primary.height_km || '--') + ' km';
-                        document.getElementById('b-vis').innerText = sanitizeText(primary.vis || primary.intensity || 'Attivo');
-
-                        structures.forEach((item) => {
-                            let centerCoord = parseCoord(item.center);
-                            let radiusMeters = (item.radius_km || 15) * 1000;
-
-                            // 1. Cerchio del centroide sulla cella corrente
-                            let macroCircle = L.circle(centerCoord, {
-                                radius: radiusMeters,
-                                className: 'circle-red',
-                                weight: 2,
-                                fillOpacity: 0.15
-                            }).bindPopup(`<b>ID:</b> ${item.id || 'STORM'}<br><b>Tipo:</b> ${sanitizeText(item.type)}<br><b>Velocità:</b> ${item.speed_kmh || '--'} km/h`);
-                            operationalLayer.addLayer(macroCircle);
-
-                            // 2. Vettore Attualità (Direzione reale di movimento corrente in avanti dal centroide)
-                            let actualPts = [centerCoord];
-                            if (item.actual_path && item.actual_path.length > 0) {
-                                let parsedActual = parsePath(item.actual_path);
-                                actualPts = [centerCoord, parsedActual[parsedActual.length - 1]];
-                            }
-                            operationalLayer.addLayer(L.polyline(actualPts, {
-                                color: '#0088ff', weight: 4, opacity: 0.9
-                            }).bindPopup("<b>Vettore Attualità</b><br>Direzione reale di movimento corrente"));
-
-                            // 3. Vettore Previsione Algoritmica (Futuro in avanti dal centroide)
-                            if (item.forecast_path && item.forecast_path.length > 0) {
-                                let fPath = [centerCoord].concat(parsePath(item.forecast_path));
-                                operationalLayer.addLayer(L.polyline(fPath, {
-                                    color: '#ff3333', weight: 3.5, dashArray: '8, 8', opacity: 0.9
-                                }).bindPopup("<b>Vettore Previsione</b><br>Modello di Nowcasting"));
-
-                                let endPoint = fPath[fPath.length - 1];
-                                let distKm = getDistanceFromLatLonInKm(centerCoord[0], centerCoord[1], endPoint[0], endPoint[1]);
-                                let speed = item.speed_kmh || 40;
-                                let totalMinutes = speed > 0 ? Math.round((distKm / speed) * 60) : 0;
-                                let etaText = totalMinutes < 60 ? `+${totalMinutes}m` : `+${Math.floor(totalMinutes/60)}h ${totalMinutes%60}m`;
-                                
-                                let cepKm = item.cep_radius_km || 1.5;
-
-                                // 4. Cerchio CEP (Incertezza di previsione sul punto finale)
-                                operationalLayer.addLayer(L.circle(endPoint, {
-                                    radius: cepKm * 1000,
-                                    className: 'cep-circle'
-                                }).bindPopup(`Raggio di Incertezza CEP: ±${cepKm} km`));
-
-                                // 5. Badge ETA sul punto finale
-                                let badgeHtml = `<div class="eta-marker">ETA: ${etaText} | CEP: ±${cepKm}km</div>`;
-                                let etaMarker = L.marker(endPoint, {
-                                    icon: L.divIcon({ className: '', html: badgeHtml, iconSize: [140, 26], iconAnchor: [70, 13] })
-                                });
-                                operationalLayer.addLayer(etaMarker);
-                            }
-                        });
-                    }
-                })
-                .catch(err => {
-                    console.error('Errore flusso telemetria:', err);
-                    document.getElementById('b-struct').innerText = 'ERRORE FLUSSO';
-                });
-        }
-
-        loadWeatherData();
-        setInterval(loadWeatherData, 60000);
+            map.on('mouseenter', 'storm-cells-vapor', () => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+            map.on('mouseleave', 'storm-cells-vapor', () => {
+                map.getCanvas().style.cursor = '';
+            });
+        });
     </script>
+
 </body>
 </html>
