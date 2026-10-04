@@ -1,48 +1,44 @@
 {
-    "generated_at": "2026-10-04T20:56:22.120427Z",
+    "generated_at": "2026-10-04T21:07:27.256691Z",
     "radar_tile": {
         "host": "https://tilecache.rainviewer.com",
-        "path": "/v2/radar/e8a6e4be457c"
+        "path": "/v2/radar/15d3aada6c6c"
     },
     "macro_structures": [
         {
-            "id": "TC-Liguria-01",
+            "id": "MCS-Liguria-01",
             "center": [
-                44.25,
-                8.9
+                44.2,
+                8.8
             ],
-            "speed_kmh": 45,
-            "intensity": "Moderata-Alta",
+            "speed_kmh": 48,
+            "intensity": "Molto Forte — Bow Echo",
             "actual_path": [
                 [
-                    44.1,
+                    44.05,
+                    8.6
+                ],
+                [
+                    44.12,
                     8.7
                 ],
                 [
-                    44.15,
-                    8.78
-                ],
-                [
                     44.2,
-                    8.84
-                ],
-                [
-                    44.25,
-                    8.9
+                    8.8
                 ]
             ],
             "forecast_path": [
                 [
-                    44.3,
-                    8.96
+                    44.28,
+                    8.9
                 ],
                 [
                     44.35,
-                    9.02
+                    9.0
                 ],
                 [
-                    44.4,
-                    9.08
+                    44.42,
+                    9.1
                 ]
             ]
         }
