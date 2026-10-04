@@ -48,7 +48,6 @@ def analyze_radar():
                 b = arr[:, :, 2].astype(float)
                 alpha = arr[:, :, 3]
                 
-                # Filtro riflettività elevata >= 32 dBZ
                 mask_high_dbz = (alpha > 100) & (r > 160) & (b < 120)
                 if not np.any(mask_high_dbz):
                     continue
@@ -79,17 +78,16 @@ def analyze_radar():
                             echo_top_val = round(min(15.0, 8.0 + (area * 0.03)), 1)
                             speed_val = int(40 + (area % 25))
 
-                            # Vettore percorso reale (ultimi posizionamenti stimati a monte)
+                            # Vettori estesi per renderli ben visibili sulla mappa
                             actual_path = [
-                                [lat - 0.08, lon - 0.08],
-                                [lat - 0.04, lon - 0.04],
+                                [lat - 0.25, lon - 0.25],
+                                [lat - 0.12, lon - 0.12],
                                 [lat, lon]
                             ]
 
-                            # Vettore predittivo (proiezione futura a valle)
                             forecast_path = [
-                                [lat + 0.05, lon + 0.06],
-                                [lat + 0.12, lon + 0.14]
+                                [lat + 0.15, lon + 0.18],
+                                [lat + 0.30, lon + 0.35]
                             ]
 
                             data_item = {
@@ -117,8 +115,8 @@ def analyze_radar():
             "intensity": "Nessun nucleo >= 32 dBZ attivo",
             "vil": 0.0,
             "echo_top": 0.0,
-            "actual_path": [[41.85, 12.45], [41.90, 12.50]],
-            "forecast_path": [[41.95, 12.55]]
+            "actual_path": [[41.80, 12.40], [41.85, 12.45], [41.90, 12.50]],
+            "forecast_path": [[41.95, 12.55], [42.00, 12.60]]
         })
 
     data = {
@@ -134,4 +132,4 @@ def analyze_radar():
 
 if __name__ == "__main__":
     analyze_radar()
-                                
+    
