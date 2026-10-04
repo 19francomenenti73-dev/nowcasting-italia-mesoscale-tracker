@@ -72,6 +72,7 @@
         var vectorsLayer = L.layerGroup().addTo(map);
 
         function loadTrackerData() {
+            // Aggiunge un timestamp per evitare problemi di cache del browser sul JSON
             fetch('centroids.json?' + new Date().getTime())
                 .then(response => {
                     if (!response.ok) {
@@ -83,17 +84,16 @@
                     cellsLayer.clearLayers();
                     vectorsLayer.clearLayers();
 
-                    // Lettura corretta dell'array macro_structures dal JSON
                     let structures = data.macro_structures || [];
                     let count = structures.length;
 
                     structures.forEach(track => {
                         let trackId = track.id || "Struttura";
-                        let center = track.center; // [lat, lon]
+                        let center = track.center; 
                         let speed = track.speed_kmh || 0;
                         let intensity = track.intensity || "N/D";
 
-                        // Disegno del percorso / poligono effettivo
+                        // Disegno del poligono / percorso effettivo della cella
                         if (track.actual_path && track.actual_path.length > 0) {
                             let latLngs = track.actual_path.map(p => [p[0], p[1]]);
                             L.polygon(latLngs, {
@@ -121,7 +121,7 @@
                             `);
                         }
 
-                        // Vettore di proiezione/previsione futura
+                        // Vettore di proiezione / previsione futura (linea tratteggiata)
                         if (track.forecast_path && track.forecast_path.length > 0 && center) {
                             let linePoints = [center, ...track.forecast_path];
                             L.polyline(linePoints, {
@@ -142,6 +142,7 @@
         }
 
         loadTrackerData();
+        // Aggiorna i dati sulla mappa ogni 3 minuti (180000 ms)
         setInterval(loadTrackerData, 180000);
     </script>
 </body>
