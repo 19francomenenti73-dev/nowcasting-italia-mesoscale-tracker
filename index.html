@@ -12,8 +12,8 @@
             margin: 0;
             padding: 0;
             font-family: Arial, sans-serif;
-            background: #1a1a1a;
-            color: #fff;
+            background: #f4f4f4;
+            color: #333;
         }
         #map {
             width: 100%;
@@ -24,27 +24,27 @@
             top: 15px;
             right: 15px;
             z-index: 1000;
-            background: rgba(30, 30, 30, 0.9);
+            background: rgba(255, 255, 255, 0.95);
             padding: 12px 18px;
             border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            border: 1px solid #444;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            border: 1px solid #ccc;
             max-width: 300px;
         }
         .panel-control h2 {
             margin: 0 0 8px 0;
             font-size: 15px;
-            color: #4da6ff;
+            color: #0066cc;
         }
         .panel-control p {
             margin: 4px 0;
             font-size: 13px;
-            color: #ccc;
+            color: #555;
         }
         .leaflet-popup-content-wrapper, .leaflet-popup-tip {
-            background: #2b2b2b;
-            color: #fff;
-            border: 1px solid #555;
+            background: #fff;
+            color: #333;
+            border: 1px solid #ccc;
         }
     </style>
 </head>
@@ -64,10 +64,10 @@
         // Inizializzazione della mappa centrata sull'Italia
         var map = L.map('map').setView([42.5, 12.5], 6);
 
-        // Mappa di base scura (CartoDB Dark Matter)
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        // Mappa di base OpenStreetMap standard (stabile e compatibile con gli iframe)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
 
         // Layer groups per gestire celle e vettori
@@ -76,8 +76,8 @@
 
         // Funzione per caricare i dati elaborati dallo script Python
         function loadTrackerData() {
-            // Percorso del file JSON generato o aggiornato dalle GitHub Actions
-            fetch('data/state.json')
+            // Aggiungiamo un parametro temporale per evitare che il browser metta in cache il file JSON
+            fetch('centroids.json?' + new Date().getTime())
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('File dati non trovato o in fase di generazione.');
@@ -112,9 +112,9 @@
                         // Marcatore del centroide della cella
                         if (current.lat && current.lon) {
                             let marker = L.circleMarker([current.lat, current.lon], {
-                                radius: 5,
+                                radius: 6,
                                 color: '#ffffff',
-                                fillColor: '#ffcc00',
+                                fillColor: '#ff3300',
                                 fillOpacity: 1,
                                 weight: 1.5
                             }).addTo(cellsLayer);
@@ -134,8 +134,8 @@
                             let predLon = current.prediction.lon;
                             
                             L.polyline([[current.lat, current.lon], [predLat, predLon]], {
-                                color: '#00ffcc',
-                                weight: 2,
+                                color: '#0066cc',
+                                weight: 2.5,
                                 dashArray: '4, 4'
                             }).addTo(vectorsLayer);
                         }
