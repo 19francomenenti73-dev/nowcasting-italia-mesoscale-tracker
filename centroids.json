@@ -1,7 +1,7 @@
 {
     "radar_tile": {
         "host": "https://tilecache.rainviewer.com",
-        "path": "/v2/radar/b50e27de7ec1"
+        "path": "/v2/radar/b07e75b92955"
     },
     "macro_structures": [
         {
@@ -21,8 +21,8 @@
                     8.6
                 ],
                 [
-                    44.0,
-                    8.8
+                    43.8,
+                    8.6
                 ]
             ],
             "forecast_path": [
@@ -31,8 +31,8 @@
                     8.6
                 ],
                 [
-                    45.0,
-                    9.5
+                    43.8,
+                    8.6
                 ]
             ],
             "cep_radius_km": 1.0
