@@ -55,7 +55,7 @@
             container: 'map',
             style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
             center: [12.5674, 41.9028],
-            zoom: 8,
+            zoom: 7,
             pitch: 0,
             bearing: 0
         });
@@ -63,34 +63,29 @@
         map.on('load', () => {
             map.addSource('cells', {
                 type: 'geojson',
-                data: 'cells.geojson'
+                data: 'centroids.json'
             });
 
-            // Layer di riempimento 2D per i poligoni delle celle (stile massa temporalesca pulita)
+            // Layer 2D stabile con cerchi pieni e contorno bianco collegato a centroids.json
             map.addLayer({
-                id: 'storm-cells-fill',
-                type: 'fill',
+                id: 'storm-cells-2d',
+                type: 'circle',
                 source: 'cells',
                 paint: {
-                    'fill-color': ['coalesce', ['get', 'color'], '#333333'],
-                    'fill-opacity': 0.7
+                    'circle-radius': [
+                        'interpolate', ['linear'], ['zoom'],
+                        6, 8,
+                        12, 20
+                    ],
+                    'circle-color': ['coalesce', ['get', 'color'], '#ff3b30'],
+                    'circle-opacity': 0.85,
+                    'circle-stroke-width': 1.5,
+                    'circle-stroke-color': '#ffffff'
                 }
             });
 
-            // Bordo sottile per definire i contorni delle celle
-            map.addLayer({
-                id: 'storm-cells-outline',
-                type: 'line',
-                source: 'cells',
-                paint: {
-                    'line-color': '#111111',
-                    'line-width': 1.5,
-                    'line-opacity': 0.8
-                }
-            });
-
-            // Gestione del click sulle celle poligonali
-            map.on('click', 'storm-cells-fill', (e) => {
+            // Gestione del click per i popup informativi
+            map.on('click', 'storm-cells-2d', (e) => {
                 const props = e.features[0].properties;
                 const coordinates = e.lngLat;
 
@@ -111,10 +106,10 @@
                     .addTo(map);
             });
 
-            map.on('mouseenter', 'storm-cells-fill', () => {
+            map.on('mouseenter', 'storm-cells-2d', () => {
                 map.getCanvas().style.cursor = 'pointer';
             });
-            map.on('mouseleave', 'storm-cells-fill', () => {
+            map.on('mouseleave', 'storm-cells-2d', () => {
                 map.getCanvas().style.cursor = '';
             });
         });
