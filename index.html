@@ -19,7 +19,6 @@
             width: 100%;
             height: 100vh;
         }
-        /* Fix fondamentale per rendering SVG Leaflet dentro gli iframe */
         .leaflet-container svg {
             position: absolute;
         }
@@ -50,11 +49,10 @@
             font-weight: bold;
             color: #d9534f;
         }
-        /* Legenda in alto a sinistra (sotto i controlli di zoom) per evitare tagli su Google Sites */
         .map-legend {
             position: absolute;
-            top: 15px;
-            left: 60px;
+            top: 115px;
+            left: 10px;
             z-index: 1000;
             background: rgba(255, 255, 255, 0.95);
             padding: 10px 14px;
@@ -90,7 +88,6 @@
             margin-right: 6px;
             display: inline-block;
         }
-        /* Stile anello pulsante interattivo */
         .pulsing-ring-icon {
             background: transparent;
             border: none;
@@ -105,18 +102,9 @@
             animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
         }
         @keyframes pulse-ring {
-            0% {
-                transform: scale(0.8);
-                box-shadow: 0 0 0 0 rgba(255, 26, 26, 0.7);
-            }
-            70% {
-                transform: scale(1.3);
-                box-shadow: 0 0 0 12px rgba(255, 26, 26, 0);
-            }
-            100% {
-                transform: scale(0.8);
-                box-shadow: 0 0 0 0 rgba(255, 26, 26, 0);
-            }
+            0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(255, 26, 26, 0.7); }
+            70% { transform: scale(1.3); box-shadow: 0 0 0 12px rgba(255, 26, 26, 0); }
+            100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(255, 26, 26, 0); }
         }
     </style>
 </head>
@@ -128,7 +116,6 @@
         <p id="last-update" style="font-size: 11px; color: #777; margin-top: 6px;"></p>
     </div>
 
-    <!-- Legenda in alto a sinistra -->
     <div class="map-legend">
         <h4>Legenda Nowcasting</h4>
         <div class="legend-item"><span class="legend-dot"></span> Centroide Cella (&ge;32 dBZ)</div>
@@ -186,8 +173,8 @@
                         let intensity = track.intensity || "N/D";
                         let vil = track.vil || 0.0;
                         let echoTop = track.echo_top || 0.0;
+                        let profileImage = track.profile_image || "";
 
-                        // 1. Vettore del percorso reale (Linea continua rossa più spessa)
                         if (track.actual_path && track.actual_path.length > 0) {
                             let latLngs = track.actual_path.map(p => [p[0], p[1]]);
                             L.polyline(latLngs, {
@@ -197,7 +184,6 @@
                             }).addTo(vectorsLayer);
                         }
 
-                        // 2. Anello pulsante interattivo del centroide
                         if (center && center.length === 2) {
                             let pulsingIcon = L.divIcon({
                                 className: 'pulsing-ring-icon',
@@ -208,18 +194,24 @@
 
                             let marker = L.marker([center[0], center[1]], { icon: pulsingIcon }).addTo(cellsLayer);
 
-                            marker.bindPopup(`
-                                <div style="font-size: 13px; line-height: 1.4;">
+                            let imageUrl = profileImage + '?' + new Date().getTime();
+
+                            let popupContent = `
+                                <div style="font-size: 12px; line-height: 1.35; min-width: 180px;">
                                     <b>ID:</b> ${trackId}<br>
                                     <b>Struttura:</b> ${intensity}<br>
                                     <b>Velocità:</b> ${speed} km/h<br>
-                                    <b>VIL:</b> ${vil} kg/m²<br>
-                                    <b>Echo Top:</b> ${echoTop} km
+                                    <b>VIL:</b> ${vil} kg/m² | <b>Top:</b> ${echoTop} km<br>
+                                    <div style="text-align: center; margin-top: 6px; background: #fafafa; border: 1px solid #ddd; border-radius: 4px; padding: 4px;">
+                                        <div style="font-size: 10px; color: #555; margin-bottom: 2px;">Profilo Verticale Riflettività (dBZ)</div>
+                                        <img src="${imageUrl}" width="160" height="90" style="display: block; margin: 0 auto; border-radius: 2px;" alt="Profilo Cella">
+                                    </div>
                                 </div>
-                            `);
+                            `;
+
+                            marker.bindPopup(popupContent);
                         }
 
-                        // 3. Vettore predittivo (Linea tratteggiata azzurra/blu più spessa)
                         if (track.forecast_path && track.forecast_path.length > 0 && center) {
                             let linePoints = [center, ...track.forecast_path];
                             L.polyline(linePoints, {
