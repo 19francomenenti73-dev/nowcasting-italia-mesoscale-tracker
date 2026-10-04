@@ -46,6 +46,46 @@
             font-weight: bold;
             color: #d9534f;
         }
+        /* Legenda in basso a sinistra */
+        .map-legend {
+            position: absolute;
+            bottom: 25px;
+            left: 15px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px 16px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            border: 1px solid #ccc;
+            font-size: 12px;
+            color: #333;
+            line-height: 1.5;
+        }
+        .map-legend h4 {
+            margin: 0 0 6px 0;
+            font-size: 13px;
+            color: #111;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+        .legend-line {
+            width: 22px;
+            height: 3px;
+            margin-right: 8px;
+            display: inline-block;
+        }
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid #ff1a1a;
+            background: rgba(255, 68, 68, 0.35);
+            margin-right: 8px;
+            display: inline-block;
+        }
         /* Stile anello pulsante interattivo */
         .pulsing-ring-icon {
             background: transparent;
@@ -82,6 +122,14 @@
         <h2>Mesoscale Tracker</h2>
         <p>Strutture attive (&ge;32 dBZ): <span id="active-count" class="counter-badge">0</span></p>
         <p id="last-update" style="font-size: 11px; color: #777; margin-top: 6px;"></p>
+    </div>
+
+    <!-- Legenda mappa -->
+    <div class="map-legend">
+        <h4>Legenda Nowcasting</h4>
+        <div class="legend-item"><span class="legend-dot"></span> Centroide Cella (&ge;32 dBZ)</div>
+        <div class="legend-item"><span class="legend-line" style="background: #cc0000;"></span> Vettore Percorso Reale</div>
+        <div class="legend-item"><span class="legend-line" style="background: #0066cc; border-bottom: 2px dashed #0066cc; height:0;"></span> Vettore Predittivo</div>
     </div>
 
     <div id="map"></div>
@@ -135,16 +183,17 @@
                         let vil = track.vil || 0.0;
                         let echoTop = track.echo_top || 0.0;
 
-                        // Linea / Vettore attuale
+                        // 1. Vettore del percorso reale (Linea continua rossa)
                         if (track.actual_path && track.actual_path.length > 0) {
                             let latLngs = track.actual_path.map(p => [p[0], p[1]]);
                             L.polyline(latLngs, {
-                                color: '#ff3300',
-                                weight: 2.5
-                            }).addTo(cellsLayer);
+                                color: '#cc0000',
+                                weight: 3.5,
+                                opacity: 0.85
+                            }).addTo(vectorsLayer);
                         }
 
-                        // Anello pulsante interattivo al posto del pallino
+                        // 2. Anello pulsante interattivo del centroide
                         if (center && center.length === 2) {
                             let pulsingIcon = L.divIcon({
                                 className: 'pulsing-ring-icon',
@@ -166,13 +215,14 @@
                             `);
                         }
 
-                        // Vettore di proiezione futura
+                        // 3. Vettore predittivo (Linea tratteggiata blu)
                         if (track.forecast_path && track.forecast_path.length > 0 && center) {
                             let linePoints = [center, ...track.forecast_path];
                             L.polyline(linePoints, {
                                 color: '#0066cc',
-                                weight: 2,
-                                dashArray: '4, 4'
+                                weight: 3.5,
+                                dashArray: '6, 6',
+                                opacity: 0.9
                             }).addTo(vectorsLayer);
                         }
                     });
@@ -189,4 +239,5 @@
         setInterval(loadTrackerData, 180000);
     </script>
 </body>
-</html>
+    </html>
+    
