@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tracker a Mesoscala - Nowcasting Italia</title>
+    <title>Nowcasting Italia - Mesoscale Tracker</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <style>
@@ -12,32 +12,48 @@
             margin: 0;
             padding: 0;
             font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: #fff;
         }
         #map {
             width: 100%;
             height: 100vh;
         }
-        .header-overlay {
+        .panel-control {
             position: absolute;
-            top: 10px;
-            left: 50px;
+            top: 15px;
+            right: 15px;
             z-index: 1000;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 8px 15px;
-            border-radius: 6px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            background: rgba(30, 30, 30, 0.9);
+            padding: 12px 18px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            border: 1px solid #444;
+            max-width: 300px;
         }
-        .header-overlay h1 {
-            margin: 0;
-            font-size: 16px;
-            color: #333;
+        .panel-control h2 {
+            margin: 0 0 8px 0;
+            font-size: 15px;
+            color: #4da6ff;
+        }
+        .panel-control p {
+            margin: 4px 0;
+            font-size: 13px;
+            color: #ccc;
+        }
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+            background: #2b2b2b;
+            color: #fff;
+            border: 1px solid #555;
         }
     </style>
 </head>
 <body>
 
-    <div class="header-overlay">
-        <h1>Tracker a Mesoscala</h1>
+    <div class="panel-control">
+        <h2>Meteo Pop - Storm Tracker</h2>
+        <p id="status-text">Caricamento dati in corso...</p>
+        <p id="last-update" style="font-size: 11px; color: #888;"></p>
     </div>
 
     <div id="map"></div>
@@ -46,15 +62,99 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script>
         // Inizializzazione della mappa centrata sull'Italia
-        var map = L.map('map').setView([42.00, 12.50], 6);
+        var map = L.map('map').setView([42.5, 12.5], 6);
 
-        // Mappa di base OpenStreetMap
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        // Mappa di base scura (CartoDB Dark Matter)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
             maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
         }).addTo(map);
 
-        // Aggiungi qui sotto la logica JavaScript per i layer radar o i tracciamenti
+        // Layer groups per gestire celle e vettori
+        var cellsLayer = L.layerGroup().addTo(map);
+        var vectorsLayer = L.layerGroup().addTo(map);
+
+        // Funzione per caricare i dati elaborati dallo script Python
+        function loadTrackerData() {
+            // Percorso del file JSON generato o aggiornato dalle GitHub Actions
+            fetch('data/state.json')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('File dati non trovato o in fase di generazione.');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    cellsLayer.clearLayers();
+                    vectorsLayer.clearLayers();
+
+                    let count = 0;
+
+                    // Iterazione sulle celle tracciate dal motore Python
+                    for (let trackId in data) {
+                        let track = data[trackId];
+                        if (!track.history || track.history.length === 0) continue;
+
+                        let current = track.history[track.history.length - 1];
+                        count++;
+
+                        // Disegno del poligono della cella (ConvexHull) se disponibile
+                        if (current.polygon && current.polygon.length > 0) {
+                            let latLngs = current.polygon.map(p => [p[0], p[1]]);
+                            L.polygon(latLngs, {
+                                color: '#ff4d4d',
+                                fillColor: '#ff1a1a',
+                                fillOpacity: 0.35,
+                                weight: 1.5
+                            }).addTo(cellsLayer);
+                        }
+
+                        // Marcatore del centroide della cella
+                        if (current.lat && current.lon) {
+                            let marker = L.circleMarker([current.lat, current.lon], {
+                                radius: 5,
+                                color: '#ffffff',
+                                fillColor: '#ffcc00',
+                                fillOpacity: 1,
+                                weight: 1.5
+                            }).addTo(cellsLayer);
+
+                            // Popup con informazioni dettagliate della struttura
+                            marker.bindPopup(`
+                                <b>ID Cella:</b> ${trackId}<br>
+                                <b>Velocità:</b> ${current.speed_kmh || 0} km/h<br>
+                                <b>Direzione:</b> ${current.direction || 0}°<br>
+                                <b>Distanza stimata:</b> ${current.distance_km || 0} km
+                            `);
+                        }
+
+                        // Vettore di proiezione/spostamento futuro
+                        if (current.lat && current.lon && current.prediction) {
+                            let predLat = current.prediction.lat;
+                            let predLon = current.prediction.lon;
+                            
+                            L.polyline([[current.lat, current.lon], [predLat, predLon]], {
+                                color: '#00ffcc',
+                                weight: 2,
+                                dashArray: '4, 4'
+                            }).addTo(vectorsLayer);
+                        }
+                    }
+
+                    document.getElementById('status-text').innerText = `Strutture attive monitorate: ${count}`;
+                    document.getElementById('last-update').innerText = 'Aggiornato: ' + new Date().toLocaleTimeString();
+                })
+                .catch(error => {
+                    console.log('Attesa dati...', error);
+                    document.getElementById('status-text').innerText = 'In attesa del primo ciclo radar...';
+                });
+        }
+
+        // Caricamento iniziale
+        loadTrackerData();
+
+        // Aggiornamento automatico ogni 3 minuti (180000 ms)
+        setInterval(loadTrackerData, 180000);
     </script>
 </body>
 </html>
