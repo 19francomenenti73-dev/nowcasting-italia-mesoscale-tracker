@@ -2,9 +2,13 @@ import json
 import requests
 import numpy as np
 import cv2
-from datetime import datetime
+import os
 from io import BytesIO
-from PIL import Image
+from PIL import Image, ImageDraw
+from datetime import datetime
+
+# Assicura che la cartella dei profili esista
+os.makedirs("profiles", exist_ok=True)
 
 def tile_pixel_to_latlon(z, x, y, px, py):
     n = 2.0 ** z
@@ -25,6 +29,42 @@ def get_latest_radar_tile_info():
     except Exception as e:
         print(f"Errore nel recupero radar: {e}")
     return "https://tilecache.rainviewer.com", "/v2/radar/1710000000"
+
+def save_iso_profile_image(grid_data, filename):
+    """Genera l'immagine PNG isometrica reale del profilo verticale"""
+    img = Image.new("RGBA", (160, 90), (250, 250, 250, 255))
+    draw = ImageDraw.Draw(img)
+    
+    if grid_data and len(grid_data) > 0:
+        rows = len(grid_data)
+        cols = len(grid_data[0])
+        tileW = 8
+        tileH = 4
+        startX = 80
+        startY = 12
+
+        def get_color(val):
+            if val >= 12: return (255, 0, 255, 230)      # Magenta
+            elif val >= 10: return (255, 26, 26, 230)   # Rosso
+            elif val >= 8: return (255, 204, 0, 230)    # Giallo
+            elif val >= 6: return (0, 230, 0, 230)      # Verde
+            elif val >= 4: return (0, 191, 255, 230)    # Ciano
+            elif val > 0: return (0, 128, 255, 230)     # Blu
+            return None
+
+        for r in range(rows):
+            for c in range(cols):
+                val = grid_data[r][c]
+                if val > 0:
+                    isoX = startX + (c - r) * (tileW / 2)
+                    isoY = startY + (c + r) * (tileH / 2)
+                    color = get_color(val)
+                    if color:
+                        for h in range(val):
+                            hY = isoY - (h * 2.2)
+                            draw.ellipse([isoX - 2.5, hY - 2.5, isoX + 2.5, hY + 2.5], fill=color)
+
+    img.save(filename, format="PNG")
 
 def analyze_radar():
     host, path = get_latest_radar_tile_info()
@@ -78,7 +118,38 @@ def analyze_radar():
                             echo_top_val = round(min(15.0, 8.0 + (area * 0.03)), 1)
                             speed_val = int(40 + (area % 25))
 
-                            # Vettori estesi per renderli ben visibili sulla mappa
+                            patch_size = 15
+                            half_p = patch_size // 2
+                            px_center = int(x_c + w / 2.0)
+                            py_center = int(y_c + h / 2.0)
+                            
+                            x_min = max(0, px_center - half_p)
+                            x_max = min(arr.shape[1], px_center + half_p + 1)
+                            y_min = max(0, py_center - half_p)
+                            y_max = min(arr.shape[0], py_center + half_p + 1)
+                            
+                            local_patch = arr[y_min:y_max, x_min:x_max]
+                            grid_matrix = []
+                            for row in local_patch:
+                                row_vals = []
+                                for pixel in row:
+                                    pr, pg, pb, pa = pixel[0], pixel[1], pixel[2], pixel[3]
+                                    if pa < 50:
+                                        row_vals.append(0)
+                                    else:
+                                        if pr > 200 and pb > 200: row_vals.append(12)
+                                        elif pr > 200 and pg < 100: row_vals.append(10)
+                                        elif pr > 200 and pg > 150: row_vals.append(8)
+                                        elif pg > 200: row_vals.append(6)
+                                        elif pb > 200 and pg > 150: row_vals.append(4)
+                                        elif pb > 150: row_vals.append(2)
+                                        else: row_vals.append(1)
+                                grid_matrix.append(row_vals)
+
+                            track_id = f"Core-{z}{x}{y}-{cell_id_counter}"
+                            img_filename = f"profiles/{track_id}.png"
+                            save_iso_profile_image(grid_matrix, img_filename)
+
                             actual_path = [
                                 [lat - 0.25, lon - 0.25],
                                 [lat - 0.12, lon - 0.12],
@@ -91,12 +162,13 @@ def analyze_radar():
                             ]
 
                             data_item = {
-                                "id": f"Core-{z}{x}{y}-{cell_id_counter}",
+                                "id": track_id,
                                 "center": [lat, lon],
                                 "speed_kmh": speed_val,
                                 "intensity": f">= 32 dBZ — {classification}",
                                 "vil": vil_val,
                                 "echo_top": echo_top_val,
+                                "profile_image": img_filename,
                                 "actual_path": actual_path,
                                 "forecast_path": forecast_path
                             }
@@ -108,13 +180,17 @@ def analyze_radar():
             print(f"Errore tile {x},{y}: {e}")
 
     if not macro_structures:
+        default_id = "Core-Standby-01"
+        default_img = f"profiles/{default_id}.png"
+        save_iso_profile_image([[0]*15 for _ in range(15)], default_img)
         macro_structures.append({
-            "id": "Core-Standby-01",
+            "id": default_id,
             "center": [41.90, 12.50],
             "speed_kmh": 0,
             "intensity": "Nessun nucleo >= 32 dBZ attivo",
             "vil": 0.0,
             "echo_top": 0.0,
+            "profile_image": default_img,
             "actual_path": [[41.80, 12.40], [41.85, 12.45], [41.90, 12.50]],
             "forecast_path": [[41.95, 12.55], [42.00, 12.60]]
         })
@@ -132,4 +208,4 @@ def analyze_radar():
 
 if __name__ == "__main__":
     analyze_radar()
-    
+                                       
