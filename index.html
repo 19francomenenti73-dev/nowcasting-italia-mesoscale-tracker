@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nowcasting Italia - Mesoscale Tracker</title>
+    <title>Mesoscale Tracker - Italia</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <style>
@@ -34,7 +34,7 @@
         .panel-control h2 {
             margin: 0 0 8px 0;
             font-size: 15px;
-            color: #0066cc;
+            color: #333;
         }
         .panel-control p {
             margin: 4px 0;
@@ -51,7 +51,7 @@
 <body>
 
     <div class="panel-control">
-        <h2>Meteo Pop - Storm Tracker</h2>
+        <h2>Mesoscale Tracker</h2>
         <p id="status-text">Caricamento dati in corso...</p>
         <p id="last-update" style="font-size: 11px; color: #888;"></p>
     </div>
@@ -61,26 +61,21 @@
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script>
-        // Inizializzazione della mappa centrata sull'Italia
         var map = L.map('map').setView([42.5, 12.5], 6);
 
-        // Mappa di base OpenStreetMap standard (stabile e compatibile con gli iframe)
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
 
-        // Layer groups per gestire celle e vettori
         var cellsLayer = L.layerGroup().addTo(map);
         var vectorsLayer = L.layerGroup().addTo(map);
 
-        // Funzione per caricare i dati elaborati dallo script Python
         function loadTrackerData() {
-            // Aggiungiamo un parametro temporale per evitare che il browser metta in cache il file JSON
             fetch('centroids.json?' + new Date().getTime())
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error('File dati non trovato o in fase di generazione.');
+                        throw new Error('File dati non trovato.');
                     }
                     return response.json();
                 })
@@ -90,7 +85,6 @@
 
                     let count = 0;
 
-                    // Iterazione sulle celle tracciate dal motore Python
                     for (let trackId in data) {
                         let track = data[trackId];
                         if (!track.history || track.history.length === 0) continue;
@@ -98,7 +92,6 @@
                         let current = track.history[track.history.length - 1];
                         count++;
 
-                        // Disegno del poligono della cella (ConvexHull) se disponibile
                         if (current.polygon && current.polygon.length > 0) {
                             let latLngs = current.polygon.map(p => [p[0], p[1]]);
                             L.polygon(latLngs, {
@@ -109,7 +102,6 @@
                             }).addTo(cellsLayer);
                         }
 
-                        // Marcatore del centroide della cella
                         if (current.lat && current.lon) {
                             let marker = L.circleMarker([current.lat, current.lon], {
                                 radius: 6,
@@ -119,16 +111,14 @@
                                 weight: 1.5
                             }).addTo(cellsLayer);
 
-                            // Popup con informazioni dettagliate della struttura
                             marker.bindPopup(`
                                 <b>ID Cella:</b> ${trackId}<br>
                                 <b>Velocità:</b> ${current.speed_kmh || 0} km/h<br>
                                 <b>Direzione:</b> ${current.direction || 0}°<br>
-                                <b>Distanza stimata:</b> ${current.distance_km || 0} km
+                                <b>Distanza:</b> ${current.distance_km || 0} km
                             `);
                         }
 
-                        // Vettore di proiezione/spostamento futuro
                         if (current.lat && current.lon && current.prediction) {
                             let predLat = current.prediction.lat;
                             let predLon = current.prediction.lon;
@@ -141,19 +131,16 @@
                         }
                     }
 
-                    document.getElementById('status-text').innerText = `Strutture attive monitorate: ${count}`;
+                    document.getElementById('status-text').innerText = `Strutture attive: ${count}`;
                     document.getElementById('last-update').innerText = 'Aggiornato: ' + new Date().toLocaleTimeString();
                 })
                 .catch(error => {
                     console.log('Attesa dati...', error);
-                    document.getElementById('status-text').innerText = 'In attesa del primo ciclo radar...';
+                    document.getElementById('status-text').innerText = 'In attesa del primo ciclo...';
                 });
         }
 
-        // Caricamento iniziale
         loadTrackerData();
-
-        // Aggiornamento automatico ogni 3 minuti (180000 ms)
         setInterval(loadTrackerData, 180000);
     </script>
 </body>
