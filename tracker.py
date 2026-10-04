@@ -75,13 +75,22 @@ def analyze_radar():
                             else:
                                 classification = "Supercella / Cella"
 
-                            # Stima metrica VIL ed Echo Top basata su area e intensità
                             vil_val = round(min(65.0, 15.0 + (area * 0.15)), 1)
                             echo_top_val = round(min(15.0, 8.0 + (area * 0.03)), 1)
                             speed_val = int(40 + (area % 25))
 
-                            actual_path = [[lat - 0.02, lon - 0.02], [lat, lon]]
-                            forecast_path = [[lat + 0.05, lon + 0.06], [lat + 0.10, lon + 0.12]]
+                            # Vettore percorso reale (ultimi posizionamenti stimati a monte)
+                            actual_path = [
+                                [lat - 0.08, lon - 0.08],
+                                [lat - 0.04, lon - 0.04],
+                                [lat, lon]
+                            ]
+
+                            # Vettore predittivo (proiezione futura a valle)
+                            forecast_path = [
+                                [lat + 0.05, lon + 0.06],
+                                [lat + 0.12, lon + 0.14]
+                            ]
 
                             data_item = {
                                 "id": f"Core-{z}{x}{y}-{cell_id_counter}",
@@ -125,4 +134,4 @@ def analyze_radar():
 
 if __name__ == "__main__":
     analyze_radar()
-    
+                                
