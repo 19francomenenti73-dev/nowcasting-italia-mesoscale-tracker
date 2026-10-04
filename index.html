@@ -19,6 +19,10 @@
             width: 100%;
             height: 100vh;
         }
+        /* Fix fondamentale per rendering SVG Leaflet dentro gli iframe */
+        .leaflet-container svg {
+            position: absolute;
+        }
         .panel-control {
             position: absolute;
             top: 15px;
@@ -46,44 +50,44 @@
             font-weight: bold;
             color: #d9534f;
         }
-        /* Legenda in basso a sinistra */
+        /* Legenda in alto a sinistra (sotto i controlli di zoom) per evitare tagli su Google Sites */
         .map-legend {
             position: absolute;
-            bottom: 25px;
-            left: 15px;
+            top: 15px;
+            left: 60px;
             z-index: 1000;
             background: rgba(255, 255, 255, 0.95);
-            padding: 12px 16px;
+            padding: 10px 14px;
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.25);
             border: 1px solid #ccc;
-            font-size: 12px;
+            font-size: 11px;
             color: #333;
-            line-height: 1.5;
+            line-height: 1.4;
         }
         .map-legend h4 {
-            margin: 0 0 6px 0;
-            font-size: 13px;
+            margin: 0 0 4px 0;
+            font-size: 12px;
             color: #111;
         }
         .legend-item {
             display: flex;
             align-items: center;
-            margin-bottom: 4px;
+            margin-bottom: 3px;
         }
         .legend-line {
-            width: 22px;
+            width: 20px;
             height: 3px;
-            margin-right: 8px;
+            margin-right: 6px;
             display: inline-block;
         }
         .legend-dot {
-            width: 12px;
-            height: 12px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
             border: 2px solid #ff1a1a;
             background: rgba(255, 68, 68, 0.35);
-            margin-right: 8px;
+            margin-right: 6px;
             display: inline-block;
         }
         /* Stile anello pulsante interattivo */
@@ -124,12 +128,12 @@
         <p id="last-update" style="font-size: 11px; color: #777; margin-top: 6px;"></p>
     </div>
 
-    <!-- Legenda mappa -->
+    <!-- Legenda in alto a sinistra -->
     <div class="map-legend">
         <h4>Legenda Nowcasting</h4>
         <div class="legend-item"><span class="legend-dot"></span> Centroide Cella (&ge;32 dBZ)</div>
-        <div class="legend-item"><span class="legend-line" style="background: #cc0000;"></span> Vettore Percorso Reale</div>
-        <div class="legend-item"><span class="legend-line" style="background: #0066cc; border-bottom: 2px dashed #0066cc; height:0;"></span> Vettore Predittivo</div>
+        <div class="legend-item"><span class="legend-line" style="background: #ff0000;"></span> Percorso Reale</div>
+        <div class="legend-item"><span class="legend-line" style="background: #00bfff; border-bottom: 2px dashed #00bfff; height:0;"></span> Vettore Predittivo</div>
     </div>
 
     <div id="map"></div>
@@ -183,13 +187,13 @@
                         let vil = track.vil || 0.0;
                         let echoTop = track.echo_top || 0.0;
 
-                        // 1. Vettore del percorso reale (Linea continua rossa)
+                        // 1. Vettore del percorso reale (Linea continua rossa più spessa)
                         if (track.actual_path && track.actual_path.length > 0) {
                             let latLngs = track.actual_path.map(p => [p[0], p[1]]);
                             L.polyline(latLngs, {
-                                color: '#cc0000',
-                                weight: 3.5,
-                                opacity: 0.85
+                                color: '#ff0000',
+                                weight: 4.5,
+                                opacity: 0.95
                             }).addTo(vectorsLayer);
                         }
 
@@ -215,14 +219,14 @@
                             `);
                         }
 
-                        // 3. Vettore predittivo (Linea tratteggiata blu)
+                        // 3. Vettore predittivo (Linea tratteggiata azzurra/blu più spessa)
                         if (track.forecast_path && track.forecast_path.length > 0 && center) {
                             let linePoints = [center, ...track.forecast_path];
                             L.polyline(linePoints, {
-                                color: '#0066cc',
-                                weight: 3.5,
-                                dashArray: '6, 6',
-                                opacity: 0.9
+                                color: '#00bfff',
+                                weight: 4.5,
+                                dashArray: '8, 8',
+                                opacity: 0.95
                             }).addTo(vectorsLayer);
                         }
                     });
@@ -239,5 +243,4 @@
         setInterval(loadTrackerData, 180000);
     </script>
 </body>
-    </html>
-    
+</html>
