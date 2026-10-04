@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mesoscale Tracker - Italia</title>
+    <title>Mesoscale Tracker & Radar Italia</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <style>
@@ -29,7 +29,7 @@
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
             border: 1px solid #ccc;
-            max-width: 300px;
+            max-width: 310px;
         }
         .panel-control h2 {
             margin: 0 0 8px 0;
@@ -52,7 +52,7 @@
 
     <div class="panel-control">
         <h2>Mesoscale Tracker</h2>
-        <p id="status-text">Caricamento radar e celle...</p>
+        <p id="status-text">Sincronizzazione radar...</p>
         <p id="last-update" style="font-size: 11px; color: #888;"></p>
     </div>
 
@@ -63,7 +63,7 @@
     <script>
         var map = L.map('map').setView([42.5, 12.5], 6);
 
-        // Mappa base OpenStreetMap
+        // Mappa di base OpenStreetMap
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; OpenStreetMap contributors'
@@ -76,17 +76,17 @@
         function loadTrackerData() {
             fetch('centroids.json?' + new Date().getTime())
                 .then(response => {
-                    if (!response.ok) throw new Error('File dati non trovato.');
+                    if (!response.ok) throw new Error('File dati non disponibile.');
                     return response.json();
                 })
                 .then(data => {
-                    // 1. Gestione del layer Radar in sovrapposizione
+                    // Gestione layer radar live RainViewer
                     if (data.radar_tile && data.radar_tile.host && data.radar_tile.path) {
                         let radarUrl = data.radar_tile.host + data.radar_tile.path + '/256/{z}/{x}/{y}/2/1_1.png';
                         if (!radarLayer) {
                             radarLayer = L.tileLayer(radarUrl, {
                                 tileSize: 256,
-                                opacity: 0.65,
+                                opacity: 0.7,
                                 attribution: 'Radar by RainViewer',
                                 zIndex: 200
                             }).addTo(map);
@@ -95,7 +95,6 @@
                         }
                     }
 
-                    // 2. Pulizia e disegno di celle e vettori
                     cellsLayer.clearLayers();
                     vectorsLayer.clearLayers();
 
@@ -108,7 +107,7 @@
                         let speed = track.speed_kmh || 0;
                         let intensity = track.intensity || "N/D";
 
-                        // Poligono della cella
+                        // Poligono della cella / area attiva
                         if (track.actual_path && track.actual_path.length > 0) {
                             let latLngs = track.actual_path.map(p => [p[0], p[1]]);
                             L.polygon(latLngs, {
@@ -119,7 +118,7 @@
                             }).addTo(cellsLayer);
                         }
 
-                        // Centroide
+                        // Marcatore del centroide
                         if (center && center.length === 2) {
                             let marker = L.circleMarker([center[0], center[1]], {
                                 radius: 6,
@@ -130,13 +129,13 @@
                             }).addTo(cellsLayer);
 
                             marker.bindPopup(`
-                                <b>ID Cella:</b> ${trackId}<br>
-                                <b>Intensità:</b> ${intensity}<br>
+                                <b>ID:</b> ${trackId}<br>
+                                <b>Tipologia / Intensità:</b> ${intensity}<br>
                                 <b>Velocità:</b> ${speed} km/h
                             `);
                         }
 
-                        // Vettore di previsione futura (linea tratteggiata blu)
+                        // Vettore di proiezione / previsione futura
                         if (track.forecast_path && track.forecast_path.length > 0 && center) {
                             let linePoints = [center, ...track.forecast_path];
                             L.polyline(linePoints, {
@@ -157,7 +156,7 @@
         }
 
         loadTrackerData();
-        // Aggiorna automaticamente ogni 3 minuti
+        // Aggiornamento automatico ogni 3 minuti
         setInterval(loadTrackerData, 180000);
     </script>
 </body>
