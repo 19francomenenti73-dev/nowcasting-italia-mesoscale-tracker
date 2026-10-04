@@ -22,70 +22,54 @@
         .leaflet-container svg {
             position: absolute;
         }
-        .panel-control {
+        /* Banner unico inferiore non invasivo */
+        .map-banner {
             position: absolute;
-            top: 15px;
-            right: 15px;
+            bottom: 15px;
+            left: 10px;
+            right: 10px;
             z-index: 1000;
             background: rgba(255, 255, 255, 0.95);
-            padding: 14px 20px;
+            padding: 8px 14px;
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.25);
             border: 1px solid #ccc;
-            min-width: 200px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #333;
+            flex-wrap: wrap;
+            gap: 10px;
         }
-        .panel-control h2 {
-            margin: 0 0 6px 0;
-            font-size: 16px;
-            color: #111;
-        }
-        .panel-control p {
-            margin: 4px 0;
-            font-size: 13px;
-            color: #444;
+        .banner-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         .counter-badge {
-            font-size: 18px;
             font-weight: bold;
             color: #d9534f;
-        }
-        .map-legend {
-            position: absolute;
-            top: 115px;
-            left: 10px;
-            z-index: 1000;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 10px 14px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-            border: 1px solid #ccc;
-            font-size: 11px;
-            color: #333;
-            line-height: 1.4;
-        }
-        .map-legend h4 {
-            margin: 0 0 4px 0;
-            font-size: 12px;
-            color: #111;
+            font-size: 14px;
         }
         .legend-item {
             display: flex;
             align-items: center;
-            margin-bottom: 3px;
+            gap: 4px;
+            font-size: 11px;
+            color: #444;
         }
         .legend-line {
-            width: 20px;
+            width: 16px;
             height: 3px;
-            margin-right: 6px;
             display: inline-block;
         }
         .legend-dot {
-            width: 10px;
-            height: 10px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
             border: 2px solid #ff1a1a;
             background: rgba(255, 68, 68, 0.35);
-            margin-right: 6px;
             display: inline-block;
         }
         .pulsing-ring-icon {
@@ -110,17 +94,17 @@
 </head>
 <body>
 
-    <div class="panel-control">
-        <h2>Mesoscale Tracker</h2>
-        <p>Strutture attive (&ge;32 dBZ): <span id="active-count" class="counter-badge">0</span></p>
-        <p id="last-update" style="font-size: 11px; color: #777; margin-top: 6px;"></p>
-    </div>
-
-    <div class="map-legend">
-        <h4>Legenda Nowcasting</h4>
-        <div class="legend-item"><span class="legend-dot"></span> Centroide Cella (&ge;32 dBZ)</div>
-        <div class="legend-item"><span class="legend-line" style="background: #ff0000;"></span> Percorso Reale</div>
-        <div class="legend-item"><span class="legend-line" style="background: #00bfff; border-bottom: 2px dashed #00bfff; height:0;"></span> Vettore Predittivo</div>
+    <!-- Banner inferiore unificato -->
+    <div class="map-banner">
+        <div class="banner-section">
+            <span><b>Tracker:</b> <span id="active-count" class="counter-badge">0</span> attive</span>
+            <span id="last-update" style="font-size: 10px; color: #666; border-left: 1px solid #ddd; padding-left: 8px;"></span>
+        </div>
+        <div class="banner-section" style="flex-wrap: wrap;">
+            <div class="legend-item"><span class="legend-dot"></span> Centroide</div>
+            <div class="legend-item"><span class="legend-line" style="background: #ff0000;"></span> Reale</div>
+            <div class="legend-item"><span class="legend-line" style="background: #00bfff; border-bottom: 2px dashed #00bfff; height:0;"></span> Predittivo</div>
+        </div>
     </div>
 
     <div id="map"></div>
