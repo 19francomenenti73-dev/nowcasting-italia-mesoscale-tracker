@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mesoscale Tracker & Radar Italia</title>
+    <title>Nowcasting Italia 3D Storm Chaser Track</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <style>
@@ -11,9 +11,9 @@
             height: 100%;
             margin: 0;
             padding: 0;
-            font-family: Arial, sans-serif;
-            background: #f4f4f4;
-            color: #333;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #0f172a;
+            color: #f8fafc;
         }
         #map {
             width: 100%;
@@ -22,88 +22,126 @@
         .leaflet-container svg {
             position: absolute;
         }
-        /* Banner unico inferiore non invasivo */
+        /* Banner inferiore pulito, in stile dark mode professionale */
         .map-banner {
             position: absolute;
-            bottom: 15px;
-            left: 10px;
-            right: 10px;
+            bottom: 16px;
+            left: 16px;
+            right: 16px;
             z-index: 1000;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 8px 14px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-            border: 1px solid #ccc;
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(8px);
+            padding: 10px 16px;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 12px;
-            color: #333;
+            font-size: 13px;
+            color: #e2e8f0;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 12px;
         }
         .banner-section {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
         .counter-badge {
-            font-weight: bold;
-            color: #d9534f;
+            font-weight: 700;
+            color: #f87171;
             font-size: 14px;
+            background: rgba(248, 113, 113, 0.1);
+            padding: 2px 8px;
+            border-radius: 6px;
         }
         .legend-item {
             display: flex;
             align-items: center;
-            gap: 4px;
-            font-size: 11px;
-            color: #444;
+            gap: 6px;
+            font-size: 12px;
+            color: #cbd5e1;
         }
         .legend-line {
-            width: 16px;
+            width: 18px;
             height: 3px;
             display: inline-block;
+            border-radius: 2px;
         }
-        .legend-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            border: 2px solid #ff1a1a;
-            background: rgba(255, 68, 68, 0.35);
-            display: inline-block;
+        /* Marker 3D trasparente */
+        .cell-3d-wrapper {
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            text-align: center;
+            transition: transform 0.2s ease;
         }
-        .pulsing-ring-icon {
+        .cell-3d-wrapper:hover {
+            transform: scale(1.15);
+            z-index: 9999;
+        }
+        /* Anello verde pulsante per il baricentro */
+        .centroid-ring-icon {
             background: transparent;
             border: none;
         }
-        .pulsing-ring {
-            position: relative;
-            width: 26px;
-            height: 26px;
+        .centroid-ring {
+            width: 16px;
+            height: 16px;
+            border: 2.5px solid #22c55e;
             border-radius: 50%;
-            background: rgba(255, 68, 68, 0.35);
-            border: 2px solid #ff1a1a;
-            animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+            background: rgba(34, 197, 94, 0.2);
+            animation: pulse-green-ring 1.4s infinite ease-in-out;
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.8);
         }
-        @keyframes pulse-ring {
-            0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(255, 26, 26, 0.7); }
-            70% { transform: scale(1.3); box-shadow: 0 0 0 12px rgba(255, 26, 26, 0); }
-            100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(255, 26, 26, 0); }
+        @keyframes pulse-green-ring {
+            0% { transform: scale(0.7); opacity: 0.5; }
+            50% { transform: scale(1.35); opacity: 1; }
+            100% { transform: scale(0.7); opacity: 0.5; }
+        }
+        /* Nodi storici blu */
+        .history-node-dot {
+            width: 7px;
+            height: 7px;
+            background: #3b82f6;
+            border: 1px solid #ffffff;
+            border-radius: 50%;
+            box-shadow: 0 0 3px rgba(0,0,0,0.8);
+        }
+        /* Vettore predittivo rosso pulsante */
+        .pulsing-arrow-icon {
+            background: transparent;
+            border: none;
+        }
+        .pulsing-arrow {
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-bottom: 12px solid #ef4444;
+            animation: pulse-arrow 1.2s infinite;
+            filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.9));
+        }
+        @keyframes pulse-arrow {
+            0% { transform: scale(0.8); opacity: 0.6; }
+            50% { transform: scale(1.35); opacity: 1; }
+            100% { transform: scale(0.8); opacity: 0.6; }
         }
     </style>
 </head>
 <body>
 
-    <!-- Banner inferiore unificato -->
+    <!-- Banner inferiore pulito e moderno -->
     <div class="map-banner">
         <div class="banner-section">
-            <span><b>Tracker:</b> <span id="active-count" class="counter-badge">0</span> attive</span>
-            <span id="last-update" style="font-size: 10px; color: #666; border-left: 1px solid #ddd; padding-left: 8px;"></span>
+            <span><b>Tracker 3D:</b> <span id="active-count" class="counter-badge">0</span> celle attive</span>
+            <span id="last-update" style="font-size: 11px; color: #94a3b8; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 10px;">Aggiornamento in corso...</span>
         </div>
         <div class="banner-section" style="flex-wrap: wrap;">
-            <div class="legend-item"><span class="legend-dot"></span> Centroide</div>
-            <div class="legend-item"><span class="legend-line" style="background: #ff0000;"></span> Reale</div>
-            <div class="legend-item"><span class="legend-line" style="background: #00bfff; border-bottom: 2px dashed #00bfff; height:0;"></span> Predittivo</div>
+            <div class="legend-item"><span class="legend-line" style="background: #3b82f6;"></span> Storico (15m)</div>
+            <div class="legend-item"><span style="width: 10px; height: 10px; border: 2px solid #22c55e; border-radius: 50%; display:inline-block;"></span> Centroide</div>
+            <div class="legend-item"><span style="width: 10px; height: 10px; background: #ef4444; display:inline-block; clip-path: polygon(50% 0%, 0% 100%, 100% 100%);"></span> Predittivo (3h)</div>
         </div>
     </div>
 
@@ -114,9 +152,9 @@
     <script>
         var map = L.map('map').setView([42.5, 12.5], 6);
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
             maxZoom: 19,
-            attribution: '&copy; OpenStreetMap contributors'
+            attribution: 'Tiles &copy; Esri'
         }).addTo(map);
 
         var radarLayer = null;
@@ -124,7 +162,7 @@
         var vectorsLayer = L.layerGroup().addTo(map);
 
         function loadTrackerData() {
-            fetch('centroids.json?' + new Date().getTime())
+            fetch('storm_cells.json?' + new Date().getTime())
                 .then(response => {
                     if (!response.ok) throw new Error('File dati non disponibile.');
                     return response.json();
@@ -135,7 +173,7 @@
                         if (!radarLayer) {
                             radarLayer = L.tileLayer(radarUrl, {
                                 tileSize: 256,
-                                opacity: 0.7,
+                                opacity: 0.65,
                                 attribution: 'Radar by RainViewer',
                                 zIndex: 200
                             }).addTo(map);
@@ -154,41 +192,66 @@
                         let trackId = track.id || "Struttura";
                         let center = track.center; 
                         let speed = track.speed_kmh || 0;
+                        let direction = track.direction_deg || 0;
                         let intensity = track.intensity || "N/D";
                         let vil = track.vil || 0.0;
                         let echoTop = track.echo_top || 0.0;
                         let profileImage = track.profile_image || "";
 
+                        // 1. Vettore Storico Blu con nodi
                         if (track.actual_path && track.actual_path.length > 0) {
                             let latLngs = track.actual_path.map(p => [p[0], p[1]]);
                             L.polyline(latLngs, {
-                                color: '#ff0000',
-                                weight: 4.5,
-                                opacity: 0.95
+                                color: '#3b82f6',
+                                weight: 4,
+                                opacity: 0.85
                             }).addTo(vectorsLayer);
+
+                            track.actual_path.forEach((hPoint, index) => {
+                                let minsAgo = (track.actual_path.length - 1 - index) * 15;
+                                let nodeIcon = L.divIcon({
+                                    className: 'history-node-icon',
+                                    html: `<div class="history-node-dot" title="T - ${minsAgo} min"></div>`,
+                                    iconSize: [8, 8],
+                                    iconAnchor: [4, 4]
+                                });
+                                L.marker([hPoint[0], hPoint[1]], { icon: nodeIcon }).addTo(vectorsLayer);
+                            });
                         }
 
+                        // 2. Profilo 3D slanciato e Centroide ad anello verde pulsante
                         if (center && center.length === 2) {
-                            let pulsingIcon = L.divIcon({
-                                className: 'pulsing-ring-icon',
-                                html: '<div class="pulsing-ring"></div>',
-                                iconSize: [26, 26],
-                                iconAnchor: [13, 13]
-                            });
-
-                            let marker = L.marker([center[0], center[1]], { icon: pulsingIcon }).addTo(cellsLayer);
-
                             let imageUrl = profileImage + '?' + new Date().getTime();
 
+                            let customIcon = L.divIcon({
+                                className: 'custom-div-icon',
+                                html: `<div class="cell-3d-wrapper">
+                                           <img src="${imageUrl}" width="84" height="68" style="display: block;" alt="3D Cell">
+                                       </div>`,
+                                iconSize: [92, 76],
+                                iconAnchor: [46, 38]
+                            });
+
+                            let marker = L.marker([center[0], center[1]], { icon: customIcon }).addTo(cellsLayer);
+
+                            // Anello verde pulsante sul baricentro
+                            let centroidIcon = L.divIcon({
+                                className: 'centroid-ring-icon',
+                                html: `<div class="centroid-ring" title="Baricentro ${trackId}"></div>`,
+                                iconSize: [16, 16],
+                                iconAnchor: [8, 8]
+                            });
+                            L.marker([center[0], center[1]], { icon: centroidIcon }).addTo(cellsLayer);
+
                             let popupContent = `
-                                <div style="font-size: 12px; line-height: 1.35; min-width: 180px;">
+                                <div style="font-size: 12px; line-height: 1.4; min-width: 180px; color: #1e293b;">
                                     <b>ID:</b> ${trackId}<br>
-                                    <b>Struttura:</b> ${intensity}<br>
-                                    <b>Velocità:</b> ${speed} km/h<br>
+                                    <b>Intensità:</b> ${intensity}<br>
+                                    <b>Velocità:</b> ${speed} km/h (${direction}°)<br>
                                     <b>VIL:</b> ${vil} kg/m² | <b>Top:</b> ${echoTop} km<br>
-                                    <div style="text-align: center; margin-top: 6px; background: #fafafa; border: 1px solid #ddd; border-radius: 4px; padding: 4px;">
-                                        <div style="font-size: 10px; color: #555; margin-bottom: 2px;">Profilo Verticale Riflettività (dBZ)</div>
-                                        <img src="${imageUrl}" width="160" height="90" style="display: block; margin: 0 auto; border-radius: 2px;" alt="Profilo Cella">
+                                    <div style="text-align: center; margin-top: 8px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px;">
+                                        <div style="font-size: 10px; color: #475569; margin-bottom: 3px; font-weight: bold;">PROFILO VERTICALE 3D</div>
+                                        <img src="${imageUrl}" width="140" height="110" style="display: block; margin: 0 auto;" alt="Profilo Ingrandito">
                                     </div>
                                 </div>
                             `;
@@ -196,14 +259,26 @@
                             marker.bindPopup(popupContent);
                         }
 
+                        // 3. Vettore Predittivo Rosso con frecce pulsanti
                         if (track.forecast_path && track.forecast_path.length > 0 && center) {
                             let linePoints = [center, ...track.forecast_path];
                             L.polyline(linePoints, {
-                                color: '#00bfff',
-                                weight: 4.5,
-                                dashArray: '8, 8',
-                                opacity: 0.95
+                                color: '#ef4444',
+                                weight: 3.5,
+                                dashArray: '6, 8',
+                                opacity: 0.9
                             }).addTo(vectorsLayer);
+
+                            track.forecast_path.forEach((fPoint, index) => {
+                                let forecastHour = (index + 1);
+                                let arrowIcon = L.divIcon({
+                                    className: 'pulsing-arrow-icon',
+                                    html: `<div class="pulsing-arrow" title="Previsione +${forecastHour}h"></div>`,
+                                    iconSize: [16, 16],
+                                    iconAnchor: [8, 8]
+                                });
+                                L.marker([fPoint[0], fPoint[1]], { icon: arrowIcon }).addTo(vectorsLayer);
+                            });
                         }
                     });
 
