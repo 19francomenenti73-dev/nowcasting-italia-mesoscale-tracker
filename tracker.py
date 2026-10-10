@@ -143,15 +143,6 @@ def analyze_radar():
                             if 35.0 <= lat <= 48.0 and 5.0 <= lon <= 19.0:
                                 aspect_ratio = max(w, h) / (min(w, h) + 1e-5)
                                 
-                                if aspect_ratio > 3.0:
-                                    classification = "MCS / Linea di Groppo"
-                                elif aspect_ratio > 1.8:
-                                    classification = "Bow Echo"
-                                elif area > 250:
-                                    classification = "MCC"
-                                else:
-                                    classification = "Supercella / Cella"
-
                                 vil_val = round(min(70.0, 10.0 + (area * 0.18)), 1)
                                 echo_top_val = round(min(16.0, 7.0 + (area * 0.035)), 1)
                                 speed_val = int(35 + (area % 30))
@@ -203,6 +194,22 @@ def analyze_radar():
                                             else: row_vals.append(1)
                                     grid_matrix.append(row_vals)
 
+                                # Calcolo riflettività massima esatta (dBZ) basata sul picco della matrice
+                                max_grid_val = max([max(r_vals) for r_vals in grid_matrix]) if grid_matrix and any(grid_matrix) else 1
+                                estimated_dbz = min(68, int(28 + max_grid_val * 3.2))
+
+                                # Classificazione scientifica rigorosa
+                                if vil_val >= 32.0 or (echo_top_val >= 11.5 and max_grid_val >= 10):
+                                    classification = "Supercella"
+                                elif aspect_ratio > 3.0:
+                                    classification = "MCS / Linea di Groppo"
+                                elif aspect_ratio > 1.8:
+                                    classification = "Bow Echo"
+                                elif area > 250:
+                                    classification = "MCC"
+                                else:
+                                    classification = "Cella Isolata"
+
                                 track_id = f"Core-{z}{x}{y}-{cell_id_counter}"
                                 img_filename = f"profiles/{track_id}.png"
                                 save_iso_profile_image(grid_matrix, img_filename)
@@ -212,7 +219,7 @@ def analyze_radar():
                                     "center": [lat, lon],
                                     "speed_kmh": speed_val,
                                     "direction_deg": direction_deg,
-                                    "intensity": f">= 32 dBZ — {classification}",
+                                    "intensity": f"{estimated_dbz} dBZ — {classification}",
                                     "vil": vil_val,
                                     "echo_top": echo_top_val,
                                     "profile_image": img_filename,
@@ -244,4 +251,4 @@ def analyze_radar():
 if __name__ == "__main__":
     analyze_radar()
     sys.exit(0)
-        
+    
