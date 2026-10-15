@@ -1,52 +1,52 @@
 {
-    "generated_at": "2026-10-15T04:00:25.778893Z",
+    "generated_at": "2026-10-15T04:57:50.923959Z",
     "radar_tile": {
         "host": "https://tilecache.rainviewer.com",
-        "path": "/v2/radar/fc189a090b3b"
+        "path": "/v2/radar/1710000000"
     },
     "macro_structures": [
         {
-            "id": "Core-485-1",
+            "id": "Core-Standby-01",
             "center": [
-                41.77131167976406,
-                9.84375
+                41.9,
+                12.5
             ],
-            "speed_kmh": 50,
-            "direction_deg": 16,
-            "intensity": "53 dBZ — Cella Isolata",
-            "vil": 12.8,
-            "echo_top": 7.5,
-            "profile_image": "profiles/Core-485-1.png",
+            "speed_kmh": 40,
+            "direction_deg": 45,
+            "intensity": "Sistema operativo (Nessun nucleo intenso)",
+            "vil": 0.0,
+            "echo_top": 0.0,
+            "profile_image": "profiles/Core-Standby-01.png",
             "actual_path": [
                 [
-                    41.7208454407273,
-                    9.829279038819607
+                    41.82,
+                    12.42
                 ],
                 [
-                    41.73766752040622,
-                    9.834102692546406
+                    41.85,
+                    12.45
                 ],
                 [
-                    41.754489600085144,
-                    9.838926346273203
+                    41.88,
+                    12.48
                 ],
                 [
-                    41.77131167976406,
-                    9.84375
+                    41.9,
+                    12.5
                 ]
             ],
             "forecast_path": [
                 [
-                    41.838599998479744,
-                    9.86304461490719
+                    41.93,
+                    12.53
                 ],
                 [
-                    41.905888317195426,
-                    9.882339229814379
+                    41.96,
+                    12.56
                 ],
                 [
-                    41.97317663591111,
-                    9.90163384472157
+                    41.99,
+                    12.59
                 ]
             ]
         }
